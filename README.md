@@ -108,8 +108,9 @@ docker-compose --profile dev up
 
 ## ☸️ Kubernetes Deployment
 
-The application includes Kubernetes manifests with Kustomize for easy deployment:
+The application includes Kubernetes manifests with Kustomize for easy deployment to Azure Kubernetes Service (AKS):
 
+### Quick Deployment
 ```bash
 # Deploy to development
 kubectl apply -k k8s/overlays/dev
@@ -117,6 +118,22 @@ kubectl apply -k k8s/overlays/dev
 # Deploy to production
 kubectl apply -k k8s/overlays/prod
 ```
+
+### Automated Deployment with GitHub Actions
+This project includes a complete CI/CD pipeline using GitHub Actions with OIDC authentication for secure deployments to AKS.
+
+**📖 Documentation:**
+- [Complete AKS Deployment Guide](docs/AKS_DEPLOYMENT.md) - Detailed setup instructions
+- [Quick Setup Checklist](docs/QUICK_SETUP.md) - Manual inputs and configuration
+- [Alternative NGINX Ingress](docs/NGINX_INGRESS.md) - NGINX ingress controller setup
+
+**🚀 Features:**
+- OIDC authentication with Azure
+- Automated Docker image builds
+- GitHub Container Registry integration
+- Environment-specific deployments (dev/prod)
+- Resource optimization for Azure free tier
+- Manual and automatic deployment triggers
 
 ## 📊 Sample Data
 

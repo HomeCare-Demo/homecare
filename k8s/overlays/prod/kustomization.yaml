@@ -7,8 +7,8 @@ resources:
 - ../../base
 
 patchesStrategicMerge:
-- replica-patch.yaml
 - resources-patch.yaml
+- ingress-patch.yaml
 
 images:
 - name: homecare-app

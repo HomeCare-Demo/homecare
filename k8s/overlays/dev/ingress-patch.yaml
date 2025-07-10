@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: homecare-ingress
+spec:
+  rules:
+  - host: dev.homecareapp.xyz
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: homecare-service
+            port:
+              number: 80
