@@ -22,38 +22,71 @@ HomeCare is a comprehensive Next.js application designed to help users manage an
 
 ### DevOps & Deployment
 - **Docker** - Containerization with multi-stage builds
-- **Kubernetes** - Container orchestration
-- **Kustomize** - Kubernetes configuration management
+- **Kubernetes** - Container orchestration on Azure AKS
+- **Kustomize** - Kubernetes configuration management with overlays
+- **Azure Application Gateway** - Ingress controller (AGIC)
+- **GitHub Actions** - CI/CD with OIDC authentication
 - **Docker Compose** - Local development environment
 
 ## Architecture
 
-### Component Structure
+### Project Structure
 ```
-src/
-├── app/                    # Next.js App Router
-│   ├── globals.css        # Global styles with design system
-│   ├── layout.tsx         # Root layout with providers
-│   └── page.tsx           # Main application page
-├── components/            # React components
-│   ├── ui/               # ShadCN UI components
-│   ├── Dashboard.tsx     # Main dashboard view
-│   ├── TaskCard.tsx      # Individual task display
-│   ├── TaskFormDialog.tsx # Task creation/editing
-│   ├── TaskFilters.tsx   # Filtering and search
-│   ├── TasksView.tsx     # All tasks view
-│   ├── CalendarView.tsx  # Calendar components
-│   ├── TaskHistory.tsx   # Task completion history
-│   ├── AnalyticsView.tsx # Analytics and reporting
-│   └── Navigation.tsx    # Sidebar navigation
-├── contexts/             # React contexts
-│   └── TaskContext.tsx   # Task state management
-├── data/                 # Sample data
-│   └── sampleTasks.ts    # Mock task data
-├── lib/                  # Utility functions
-│   └── utils.ts          # Common utilities
-└── types/                # TypeScript type definitions
-    └── task.ts           # Task-related types
+/
+├── .github/                   # GitHub workflows and settings
+│   └── workflows/
+│       └── deploy.yml        # Automated deployment to AKS
+├── docs/                     # Documentation
+│   ├── AKS_DEPLOYMENT.md    # Azure AKS deployment guide
+│   ├── NGINX_INGRESS.md     # Alternative ingress configuration
+│   └── QUICK_SETUP.md       # Quick setup checklist
+├── k8s/                      # Kubernetes configurations
+│   ├── base/                # Base Kubernetes manifests
+│   │   ├── deployment.yaml  # Application deployment
+│   │   ├── service.yaml     # ClusterIP service
+│   │   ├── ingress.yaml     # AGIC ingress configuration
+│   │   └── kustomization.yaml
+│   └── overlays/            # Environment-specific overlays
+│       ├── dev/             # Development environment
+│       │   ├── ingress-patch.yaml    # dev.homecareapp.xyz
+│       │   ├── resources-patch.yaml  # Minimal resources
+│       │   └── kustomization.yaml
+│       └── prod/            # Production environment
+│           ├── ingress-patch.yaml    # homecareapp.xyz
+│           ├── resources-patch.yaml  # Production resources
+│           └── kustomization.yaml
+├── scripts/                  # Automation scripts
+│   ├── setup-aks.sh        # Complete Azure/AKS setup
+│   └── cleanup-aks.sh      # Resource cleanup
+├── src/                     # Application source code
+│   ├── app/                 # Next.js App Router
+│   │   ├── globals.css     # Global styles with design system
+│   │   ├── layout.tsx      # Root layout with providers
+│   │   └── page.tsx        # Main application page
+│   ├── components/          # React components
+│   │   ├── ui/             # ShadCN UI components
+│   │   ├── Dashboard.tsx   # Main dashboard view
+│   │   ├── TaskCard.tsx    # Individual task display
+│   │   ├── TaskFormDialog.tsx # Task creation/editing
+│   │   ├── TaskFilters.tsx # Filtering and search
+│   │   ├── TasksView.tsx   # All tasks view
+│   │   ├── CalendarView.tsx # Calendar components
+│   │   ├── TaskHistory.tsx # Task completion history
+│   │   ├── AnalyticsView.tsx # Analytics and reporting
+│   │   └── Navigation.tsx  # Sidebar navigation
+│   ├── contexts/           # React contexts
+│   │   └── TaskContext.tsx # Task state management
+│   ├── data/               # Sample data
+│   │   └── sampleTasks.ts  # Mock task data
+│   ├── lib/                # Utility functions
+│   │   └── utils.ts        # Common utilities
+│   └── types/              # TypeScript type definitions
+│       └── task.ts         # Task-related types
+├── public/                  # Static assets
+├── docker-compose.yml       # Local development setup
+├── Dockerfile              # Production container build
+├── Dockerfile.dev          # Development container build
+└── package.json            # Dependencies and scripts
 ```
 
 ### State Management
@@ -66,6 +99,13 @@ src/
 - **Gradients** - Beautiful visual elements
 - **Smooth Animations** - Enhanced UX
 - **Responsive Design** - Desktop-first approach
+
+### Infrastructure & Deployment
+- **Azure AKS** - Managed Kubernetes cluster (free tier compatible)
+- **Application Gateway** - Azure native ingress with AGIC
+- **Single Node Setup** - Cost-optimized for development/small workloads
+- **Resource Optimization** - Minimal CPU/memory requests for efficiency
+- **Domain Configuration** - Pre-configured for homecareapp.xyz
 
 ## Key Features
 
@@ -145,6 +185,11 @@ import { cn } from '@/lib/utils'
 
 ## Deployment
 
+### Automated Setup
+- **Setup Script**: `scripts/setup-aks.sh` - Complete Azure infrastructure setup
+- **Cleanup Script**: `scripts/cleanup-aks.sh` - Safe resource removal
+- **Idempotent Operations**: Scripts can be run multiple times safely
+
 ### Docker
 - Multi-stage build for production
 - Non-root user for security
@@ -154,11 +199,21 @@ import { cn } from '@/lib/utils'
 ### Kubernetes
 - Kustomize for configuration management
 - Separate dev/prod environments
-- Horizontal pod autoscaling ready
-- Resource limits and requests configured
+- Resource limits optimized for single node
+- AGIC ingress with homecareapp.xyz domain
+
+### GitHub Actions CI/CD
+- OIDC authentication with Azure (no secrets)
+- Automated Docker image building and pushing
+- Environment-specific deployments
+- Manual and release-triggered workflows
 
 ### Commands
 ```bash
+# Automated setup (recommended)
+chmod +x scripts/setup-aks.sh
+./scripts/setup-aks.sh
+
 # Development
 npm run dev
 
@@ -173,12 +228,30 @@ kubectl apply -k k8s/overlays/dev
 
 # Kubernetes deploy (prod)
 kubectl apply -k k8s/overlays/prod
+
+# Cleanup resources
+chmod +x scripts/cleanup-aks.sh
+./scripts/cleanup-aks.sh
 ```
 
 ## Environment Variables
+
+### Application
 - `NODE_ENV` - Environment (development/production)
 - `PORT` - Server port (default: 3000)
 - `HOSTNAME` - Server hostname (default: 0.0.0.0)
+
+### GitHub Actions Secrets
+- `AZURE_CLIENT_ID` - Azure AD app registration ID
+- `AZURE_TENANT_ID` - Azure tenant ID
+- `AZURE_SUBSCRIPTION_ID` - Azure subscription ID
+- `AZURE_RESOURCE_GROUP` - Azure resource group name
+- `AZURE_CLUSTER_NAME` - AKS cluster name
+
+### Kubernetes Resource Configurations
+- **Base Environment**: 1 replica, 64Mi memory request, 128Mi limit
+- **Dev Environment**: 1 replica, 32Mi memory request, 64Mi limit
+- **Prod Environment**: 1 replica, 64Mi memory request, 128Mi limit
 
 ## Data Structure
 
@@ -203,6 +276,29 @@ interface Task {
 - 10 realistic home maintenance tasks
 - Complete with categories, frequencies, and history
 - Covers electrical, plumbing, HVAC, cleaning, seasonal tasks
+
+## Infrastructure Details
+
+### Azure AKS Configuration
+- **VM Size**: Standard_D2plds_v5 (ARM-based, cost-optimized)
+- **Network**: Azure CNI Overlay mode
+- **Free Tier**: Compatible with Azure free tier
+- **Single Node**: 1 node pool for cost optimization
+- **AGIC**: Application Gateway Ingress Controller for native Azure integration
+
+### DNS and Ingress
+- **Production Domain**: homecareapp.xyz
+- **Development Domain**: dev.homecareapp.xyz
+- **Wildcard DNS**: *.homecareapp.xyz → Application Gateway IP
+- **SSL**: Handled by Application Gateway
+- **Ingress Class**: azure/application-gateway
+
+### Cost Optimization
+- Single replica deployments for all environments
+- Minimal resource requests and limits
+- ARM-based VM for better price/performance
+- Free tier AKS control plane
+- Estimated monthly cost: ~$85-120
 
 ## Performance Considerations
 - Lazy loading for large task lists

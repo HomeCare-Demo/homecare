@@ -67,8 +67,7 @@ az aks create \
   --generate-ssh-keys \
   --tier free \
   --network-plugin azure \
-  --network-plugin-mode overlay \
-  --network-dataplane cilium
+  --network-plugin-mode overlay
 ```
 
 Create networking infrastructure for Application Gateway:
@@ -356,6 +355,7 @@ The configuration is optimized for Azure free tier with single-node deployment:
 - Use `scripts/cleanup-aks.sh` to delete resources when not needed
 - Monitor Azure Cost Management for usage tracking
 - Consider spot instances for non-production workloads
+- Standard Azure CNI provides good performance without additional complexity
 ```
 
 ### 5.3 Monitoring Costs

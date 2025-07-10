@@ -1,5 +1,8 @@
 name: Deploy to AKS
 
+# Workflow triggers:
+# 1. Manual dispatch - allows choosing environment (dev/prod) and optional image tag
+# 2. Release published - automatically deploys to production
 on:
   workflow_dispatch:
     inputs:
@@ -19,25 +22,29 @@ on:
   release:
     types: [published]
 
+# Global environment variables
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
+  # Build job: Creates and pushes Docker image to GitHub Container Registry
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      packages: write
+      contents: read      # Read repository contents
+      packages: write     # Push to GitHub Container Registry
     outputs:
-      image: ${{ steps.image.outputs.image }}
-      digest: ${{ steps.build.outputs.digest }}
-      environment: ${{ steps.environment.outputs.environment }}
+      image: ${{ steps.image.outputs.image }}           # Full image reference for deployment
+      digest: ${{ steps.build.outputs.digest }}         # Image digest for security
+      environment: ${{ steps.environment.outputs.environment }}  # Target environment
     
     steps:
+    # Checkout the repository code
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    # Determine which environment to deploy to based on trigger type
     - name: Determine environment
       id: environment
       run: |
@@ -47,6 +54,7 @@ jobs:
           echo "environment=${{ github.event.inputs.environment || 'dev' }}" >> $GITHUB_OUTPUT
         fi
 
+    # Login to GitHub Container Registry using built-in token
     - name: Log in to Container Registry
       uses: docker/login-action@v3
       with:
@@ -54,50 +62,57 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
+    # Generate Docker image metadata (tags, labels)
     - name: Extract metadata
       id: meta
       uses: docker/metadata-action@v5
       with:
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
         tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=sha,prefix={{branch}}-
-          type=raw,value=latest,enable={{is_default_branch}}
+          type=ref,event=branch                          # branch-name
+          type=ref,event=pr                              # pr-number
+          type=semver,pattern={{version}}                # v1.2.3 (for releases)
+          type=semver,pattern={{major}}.{{minor}}        # v1.2 (for releases)
+          type=sha,prefix={{branch}}-                    # branch-sha123456
+          type=raw,value=latest,enable={{is_default_branch}}  # latest (only for main branch)
 
+    # Set up Docker Buildx for advanced build features
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
+    # Build and push the Docker image with caching
     - name: Build and push Docker image
       id: build
       uses: docker/build-push-action@v5
       with:
-        context: .
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        context: .                    # Build context (repository root)
+        push: true                    # Push to registry
+        tags: ${{ steps.meta.outputs.tags }}    # Apply generated tags
+        labels: ${{ steps.meta.outputs.labels }} # Apply generated labels
+        cache-from: type=gha         # Use GitHub Actions cache
+        cache-to: type=gha,mode=max  # Save to GitHub Actions cache
 
+    # Generate the final image reference for deployment
     - name: Generate image reference
       id: image
       run: |
         echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}" >> $GITHUB_OUTPUT
 
+  # Deploy job: Deploys the built image to AKS using Kustomize
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    environment: ${{ needs.build.outputs.environment }}
+    environment: ${{ needs.build.outputs.environment }}  # Use GitHub environment for approval/protection
     permissions:
-      id-token: write
-      contents: read
+      id-token: write     # Required for OIDC authentication with Azure
+      contents: read      # Read repository contents
     
     steps:
+    # Checkout repository to access Kubernetes manifests
     - name: Checkout repository
       uses: actions/checkout@v4
 
+    # Authenticate to Azure using OIDC (no secrets required)
     - name: Azure login using OIDC
       uses: azure/login@v2
       with:
@@ -105,11 +120,13 @@ jobs:
         tenant-id: ${{ secrets.AZURE_TENANT_ID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+    # Install kubectl for Kubernetes operations
     - name: Set up kubectl
       uses: azure/setup-kubectl@v3
       with:
         version: 'latest'
 
+    # Get AKS cluster credentials and configure kubectl
     - name: Get AKS credentials
       run: |
         az aks get-credentials \
@@ -117,21 +134,36 @@ jobs:
           --name ${{ secrets.AZURE_CLUSTER_NAME }} \
           --overwrite-existing
 
+    # Create namespace for the environment if it doesn't exist
+    # Uses homecare-dev or homecare-prod pattern
     - name: Create namespace if it doesn't exist
       run: |
         kubectl create namespace homecare-${{ needs.build.outputs.environment }} --dry-run=client -o yaml | kubectl apply -f -
 
+    # Deploy using Kustomize with environment-specific overlays
+    # Replaces the image reference with the newly built image
     - name: Deploy to AKS
       run: |
         cd k8s/overlays/${{ needs.build.outputs.environment }}
         kubectl kustomize . | sed "s|homecare-app:.*|${{ needs.build.outputs.image }}|g" | kubectl apply -f -
 
+    # Wait for the deployment to complete (5 minute timeout)
     - name: Wait for deployment
       run: |
         kubectl rollout status deployment/homecare-app -n homecare-${{ needs.build.outputs.environment }} --timeout=300s
 
+    # Display deployment status and resources for verification
     - name: Get deployment status
       run: |
+        echo "🚀 Deployment Status for homecare-${{ needs.build.outputs.environment }}"
+        echo "================================================"
+        echo "📦 Pods:"
         kubectl get pods -n homecare-${{ needs.build.outputs.environment }} -l app=homecare-app
+        echo ""
+        echo "🌐 Services:"
         kubectl get svc -n homecare-${{ needs.build.outputs.environment }}
+        echo ""
+        echo "🔗 Ingress:"
         kubectl get ingress -n homecare-${{ needs.build.outputs.environment }}
+        echo ""
+        echo "✅ Deployment completed successfully!"

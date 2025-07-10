@@ -117,7 +117,6 @@ create_aks_cluster() {
             --tier free \
             --network-plugin azure \
             --network-plugin-mode overlay \
-            --network-dataplane cilium \
             --yes
     fi
 }
