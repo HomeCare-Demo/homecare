@@ -1,0 +1,20 @@
+# terraform.tfvars.example
+# Copy this file to terraform.tfvars and customize the values
+
+# Basic Configuration
+resource_group_name = "homecare"
+location           = "Central India"
+prefix             = "homecare"
+cluster_name       = "homecare"
+app_name          = "homecare-app"
+
+# GitHub Repository (REQUIRED - Update this with your repository)
+github_repo = "mvkaran/homecare"
+
+# Tags for all resources
+tags = {
+  Project     = "HomeCare"
+  Environment = "Production"
+  ManagedBy   = "Terraform"
+  Owner       = "mvkaran"
+}

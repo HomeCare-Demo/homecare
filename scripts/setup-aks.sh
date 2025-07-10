@@ -13,15 +13,15 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Default values
-RESOURCE_GROUP="homecare-rg"
-LOCATION="eastus"
-CLUSTER_NAME="homecare-aks"
+RESOURCE_GROUP="homecare"
+LOCATION="centralindia"
+CLUSTER_NAME="homecare"
 APP_NAME="homecare-app"
 APPGW_NAME="homecare-appgw"
 APPGW_SUBNET_NAME="appgw-subnet"
 VNET_NAME="homecare-vnet"
 PIP_NAME="homecare-pip"
-GITHUB_REPO=""
+GITHUB_REPO="mvkaran/homecare"
 APPGW_PUBLIC_IP=""
 
 # Functions
@@ -125,6 +125,22 @@ create_aks_cluster() {
 setup_application_gateway() {
     log "Setting up Application Gateway and AGIC"
     
+    # Check current user permissions for networking operations
+    log "Checking current user permissions for networking operations"
+    CURRENT_USER_ID=$(az ad signed-in-user show --query id --output tsv 2>/dev/null || echo "")
+    if [ -n "$CURRENT_USER_ID" ]; then
+        # Check if current user has Network Contributor role
+        SUB_SCOPE="/subscriptions/$SUBSCRIPTION_ID"
+        USER_NETWORK_ROLE=$(az role assignment list --assignee "$CURRENT_USER_ID" --scope "$SUB_SCOPE" --role "Network Contributor" --query "length([?roleDefinitionName=='Network Contributor'])" --output tsv 2>/dev/null || echo "0")
+        
+        if [ "$USER_NETWORK_ROLE" = "0" ]; then
+            warn "Current user may not have Network Contributor permissions. Application Gateway creation might fail."
+            warn "If this fails, please ask your Azure admin to assign 'Network Contributor' role to your account."
+        else
+            log "Current user has Network Contributor permissions"
+        fi
+    fi
+    
     # Always ensure networking infrastructure exists
     log "Checking networking infrastructure for Application Gateway"
     
@@ -169,20 +185,28 @@ setup_application_gateway() {
     if az network application-gateway show --resource-group "$RESOURCE_GROUP" --name "$APPGW_NAME" &> /dev/null; then
         log "Application Gateway '$APPGW_NAME' already exists"
     else
-        log "Creating Application Gateway: $APPGW_NAME (this may take 5-10 minutes)"
+        log "Creating Application Gateway: $APPGW_NAME (Standard SKU, will update to Basic - this may take 5-10 minutes)"
         az network application-gateway create \
             --resource-group "$RESOURCE_GROUP" \
             --name "$APPGW_NAME" \
             --location "$LOCATION" \
-            --capacity 2 \
-            --sku Standard_v2 \
+            --capacity 1 \
+            --sku Standard_Small \
             --vnet-name "$VNET_NAME" \
             --subnet "$APPGW_SUBNET_NAME" \
             --public-ip-address "$PIP_NAME" \
+            --servers "10.0.0.4" \
             --http-settings-cookie-based-affinity Disabled \
             --http-settings-port 80 \
             --http-settings-protocol Http \
             --frontend-port 80
+        
+        log "Updating Application Gateway to Basic SKU"
+        az network application-gateway update \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$APPGW_NAME" \
+            --sku Basic \
+            --capacity 1
     fi
     
     # Check if AGIC addon is enabled
@@ -192,11 +216,13 @@ setup_application_gateway() {
         log "AGIC addon is already enabled on AKS cluster"
     else
         log "Enabling AGIC addon on AKS cluster"
+        # Get the Application Gateway resource ID
+        APPGW_ID=$(az network application-gateway show --resource-group "$RESOURCE_GROUP" --name "$APPGW_NAME" --query id --output tsv)
         az aks enable-addons \
             --resource-group "$RESOURCE_GROUP" \
             --name "$CLUSTER_NAME" \
             --addons ingress-appgw \
-            --appgw-name "$APPGW_NAME"
+            --appgw-id "$APPGW_ID"
     fi
     
     # Get and display the Application Gateway public IP
@@ -268,6 +294,20 @@ assign_permissions() {
             --role Contributor \
             --assignee "$APP_ID" \
             --scope "$RG_SCOPE"
+    fi
+    
+    # Check and assign Network Contributor role to the subscription (needed for Application Gateway)
+    SUB_SCOPE="/subscriptions/$SUBSCRIPTION_ID"
+    EXISTING_NETWORK_CONTRIBUTOR=$(az role assignment list --assignee "$APP_ID" --scope "$SUB_SCOPE" --role "Network Contributor" --query "length([?roleDefinitionName=='Network Contributor'])" --output tsv 2>/dev/null || echo "0")
+    
+    if [ "$EXISTING_NETWORK_CONTRIBUTOR" != "0" ]; then
+        log "Network Contributor role already assigned to subscription"
+    else
+        log "Assigning Network Contributor role to subscription (required for Application Gateway)"
+        az role assignment create \
+            --role "Network Contributor" \
+            --assignee "$APP_ID" \
+            --scope "$SUB_SCOPE"
     fi
     
     # Check and assign AKS Cluster User role

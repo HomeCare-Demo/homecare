@@ -95,20 +95,28 @@ az network public-ip create \
   --allocation-method Static \
   --sku Standard
 
-# Create Application Gateway
+# Create Application Gateway (Standard first, then update to Basic)
 az network application-gateway create \
   --resource-group $RESOURCE_GROUP \
   --name $APPGW_NAME \
   --location $LOCATION \
-  --capacity 2 \
-  --sku Standard_v2 \
+  --capacity 1 \
+  --sku Standard_Small \
   --vnet-name $VNET_NAME \
   --subnet appgw-subnet \
   --public-ip-address $PIP_NAME \
+  --servers "" \
   --http-settings-cookie-based-affinity Disabled \
   --http-settings-port 80 \
   --http-settings-protocol Http \
   --frontend-port 80
+
+# Update to Basic SKU (Azure CLI doesn't support Basic in create command)
+az network application-gateway update \
+  --resource-group $RESOURCE_GROUP \
+  --name $APPGW_NAME \
+  --sku Basic \
+  --capacity 1
 
 # Enable AGIC addon
 az aks enable-addons \
