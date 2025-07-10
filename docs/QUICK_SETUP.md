@@ -25,26 +25,30 @@ The ingress is already configured for your domain:
 
 ### 4. DNS Configuration
 Configure wildcard DNS at your DNS provider:
-- [ ] `*.homecareapp.xyz  A  <AGIC_PUBLIC_IP>`
-- [ ] `homecareapp.xyz    A  <AGIC_PUBLIC_IP>`
+- [ ] `*.homecareapp.xyz  A  <NGINX_LOAD_BALANCER_IP>`
+- [ ] `homecareapp.xyz    A  <NGINX_LOAD_BALANCER_IP>`
 
 (The setup script will provide the actual IP address)
 
 ## Automated Setup (Recommended)
 
-Use the provided setup script for complete automation:
+Use the provided Terraform configuration and NGINX scripts for automated setup:
 
 ```bash
-# Make the script executable
-chmod +x scripts/setup-aks.sh
+# Initialize and deploy infrastructure
+cd terraform
+terraform init
+terraform plan
+terraform apply
 
-# Run the automated setup
-./scripts/setup-aks.sh
+# Install NGINX Ingress Controller
+./scripts/install-nginx-ingress.sh
 ```
 
-The script will:
-- Create all Azure resources (RG, AKS, Application Gateway, AGIC)
-- Set up OIDC with GitHub Actions
+The setup process will:
+- Create all Azure resources (RG, AKS) using Terraform
+- Install NGINX Ingress Controller
+- Require manual OIDC setup with GitHub Actions
 - Generate all required configuration values
 - Provide DNS configuration instructions
 
@@ -105,7 +109,7 @@ kubectl get svc -n homecare-dev
 kubectl get ingress -n homecare-dev
 
 # 5. Test application access
-curl -H "Host: dev.homecareapp.xyz" http://<AGIC_PUBLIC_IP>
+curl -H "Host: dev.homecareapp.xyz" http://<NGINX_LOAD_BALANCER_IP>
 
 # 6. Check application logs
 kubectl logs -f deployment/homecare-app -n homecare-dev

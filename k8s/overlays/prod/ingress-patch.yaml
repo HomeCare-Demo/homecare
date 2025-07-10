@@ -3,10 +3,11 @@ kind: Ingress
 metadata:
   name: homecare-ingress
   annotations:
-    appgw.ingress.kubernetes.io/ssl-redirect: "true"
-    appgw.ingress.kubernetes.io/connection-draining: "true"
-    appgw.ingress.kubernetes.io/connection-draining-timeout: "30"
-    appgw.ingress.kubernetes.io/request-timeout: "60"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "2m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
 spec:
   rules:
   - host: homecareapp.xyz

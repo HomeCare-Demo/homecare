@@ -23,9 +23,11 @@ HomeCare is a comprehensive Next.js application designed to help users manage an
 ### DevOps & Deployment
 - **Docker** - Containerization with multi-stage builds
 - **Kubernetes** - Container orchestration on Azure AKS
+- **Terraform** - Infrastructure as Code for Azure resources
 - **Kustomize** - Kubernetes configuration management with overlays
-- **Azure Application Gateway** - Ingress controller (AGIC)
+- **NGINX Ingress** - Cost-optimized ingress controller with Basic Load Balancer
 - **GitHub Actions** - CI/CD with OIDC authentication
+- **Helm** - Package management for Kubernetes applications
 - **Docker Compose** - Local development environment
 
 ## Architecture
@@ -38,13 +40,24 @@ HomeCare is a comprehensive Next.js application designed to help users manage an
 │       └── deploy.yml        # Automated deployment to AKS
 ├── docs/                     # Documentation
 │   ├── AKS_DEPLOYMENT.md    # Azure AKS deployment guide
-│   ├── NGINX_INGRESS.md     # Alternative ingress configuration
+│   ├── NGINX_INGRESS.md     # NGINX ingress controller setup
 │   └── QUICK_SETUP.md       # Quick setup checklist
+├── terraform/                # Infrastructure as Code
+│   ├── providers.tf         # Terraform provider configurations
+│   ├── resource-group.tf    # Azure Resource Group
+│   ├── networking.tf        # VNet, subnets, and public IP
+│   ├── kubernetes.tf        # AKS cluster configuration
+│   ├── azure-ad.tf          # Azure AD app registration
+│   ├── role-assignments.tf  # RBAC configurations
+│   ├── federated-identity.tf # GitHub OIDC setup
+│   ├── variables.tf         # Terraform variables
+│   ├── outputs.tf           # Output values
+│   └── README.md            # Terraform documentation
 ├── k8s/                      # Kubernetes configurations
 │   ├── base/                # Base Kubernetes manifests
 │   │   ├── deployment.yaml  # Application deployment
 │   │   ├── service.yaml     # ClusterIP service
-│   │   ├── ingress.yaml     # AGIC ingress configuration
+│   │   ├── ingress.yaml     # NGINX ingress configuration
 │   │   └── kustomization.yaml
 │   └── overlays/            # Environment-specific overlays
 │       ├── dev/             # Development environment
@@ -56,8 +69,8 @@ HomeCare is a comprehensive Next.js application designed to help users manage an
 │           ├── resources-patch.yaml  # Production resources
 │           └── kustomization.yaml
 ├── scripts/                  # Automation scripts
-│   ├── setup-aks.sh        # Complete Azure/AKS setup
-│   └── cleanup-aks.sh      # Resource cleanup
+│   ├── install-nginx-ingress.sh    # NGINX ingress installation
+│   └── manage-nginx-ingress.sh     # NGINX management utilities
 ├── src/                     # Application source code
 │   ├── app/                 # Next.js App Router
 │   │   ├── globals.css     # Global styles with design system
@@ -102,7 +115,8 @@ HomeCare is a comprehensive Next.js application designed to help users manage an
 
 ### Infrastructure & Deployment
 - **Azure AKS** - Managed Kubernetes cluster (free tier compatible)
-- **Application Gateway** - Azure native ingress with AGIC
+- **Terraform** - Infrastructure as Code for reproducible deployments
+- **NGINX Ingress** - Cost-optimized ingress controller with Basic Load Balancer
 - **Single Node Setup** - Cost-optimized for development/small workloads
 - **Resource Optimization** - Minimal CPU/memory requests for efficiency
 - **Domain Configuration** - Pre-configured for homecareapp.xyz
@@ -185,10 +199,13 @@ import { cn } from '@/lib/utils'
 
 ## Deployment
 
-### Automated Setup
-- **Setup Script**: `scripts/setup-aks.sh` - Complete Azure infrastructure setup
-- **Cleanup Script**: `scripts/cleanup-aks.sh` - Safe resource removal
-- **Idempotent Operations**: Scripts can be run multiple times safely
+### Infrastructure Setup
+- **Terraform** - Complete Infrastructure as Code configuration
+  - Azure Resource Group, VNet, AKS cluster
+  - Azure AD app registration for GitHub OIDC
+  - Federated identity credentials for secure CI/CD
+- **Automated Scripts** - NGINX ingress installation and management
+- **Idempotent Operations** - Scripts can be run multiple times safely
 
 ### Docker
 - Multi-stage build for production
@@ -200,7 +217,7 @@ import { cn } from '@/lib/utils'
 - Kustomize for configuration management
 - Separate dev/prod environments
 - Resource limits optimized for single node
-- AGIC ingress with homecareapp.xyz domain
+- NGINX ingress with cost-optimized Basic Load Balancer
 
 ### GitHub Actions CI/CD
 - OIDC authentication with Azure (no secrets)
@@ -210,9 +227,17 @@ import { cn } from '@/lib/utils'
 
 ### Commands
 ```bash
-# Automated setup (recommended)
-chmod +x scripts/setup-aks.sh
-./scripts/setup-aks.sh
+# Infrastructure setup with Terraform
+cd terraform
+terraform init
+terraform plan
+terraform apply
+
+# NGINX Ingress installation
+./scripts/install-nginx-ingress.sh
+
+# NGINX Ingress management
+./scripts/manage-nginx-ingress.sh
 
 # Development
 npm run dev
@@ -229,9 +254,8 @@ kubectl apply -k k8s/overlays/dev
 # Kubernetes deploy (prod)
 kubectl apply -k k8s/overlays/prod
 
-# Cleanup resources
-chmod +x scripts/cleanup-aks.sh
-./scripts/cleanup-aks.sh
+# Infrastructure cleanup
+terraform destroy
 ```
 
 ## Environment Variables
@@ -284,21 +308,21 @@ interface Task {
 - **Network**: Azure CNI Overlay mode
 - **Free Tier**: Compatible with Azure free tier
 - **Single Node**: 1 node pool for cost optimization
-- **AGIC**: Application Gateway Ingress Controller for native Azure integration
 
 ### DNS and Ingress
 - **Production Domain**: homecareapp.xyz
 - **Development Domain**: dev.homecareapp.xyz
-- **Wildcard DNS**: *.homecareapp.xyz → Application Gateway IP
-- **SSL**: Handled by Application Gateway
-- **Ingress Class**: azure/application-gateway
+- **Wildcard DNS**: *.homecareapp.xyz → Load Balancer IP
+- **SSL**: Handled by ingress controller
+- **Ingress Controller**: NGINX Ingress Controller with Basic Load Balancer
 
 ### Cost Optimization
 - Single replica deployments for all environments
 - Minimal resource requests and limits
 - ARM-based VM for better price/performance
 - Free tier AKS control plane
-- Estimated monthly cost: ~$85-120
+- NGINX Ingress with Basic Load Balancer for cost-effective load balancing
+- Estimated monthly cost: ~$15-25 for basic workloads
 
 ## Performance Considerations
 - Lazy loading for large task lists

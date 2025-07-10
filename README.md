@@ -106,12 +106,27 @@ docker-compose up
 docker-compose --profile dev up
 ```
 
-## ☸️ Kubernetes Deployment
+## ☸️ Infrastructure & Deployment
 
-The application includes Kubernetes manifests with Kustomize for easy deployment to Azure Kubernetes Service (AKS):
+The application includes complete Infrastructure as Code (IaC) with Terraform and production-ready Kubernetes configurations for Azure deployment:
+
+### Infrastructure Setup with Terraform
+```bash
+# Initialize and deploy infrastructure
+cd terraform
+terraform init
+terraform plan
+terraform apply
+```
+
+### Ingress Controller
+- **NGINX Ingress**: Cost-optimized with Basic Load Balancer (~$15-25/month)
 
 ### Quick Deployment
 ```bash
+# Install NGINX Ingress Controller
+./scripts/install-nginx-ingress.sh
+
 # Deploy to development
 kubectl apply -k k8s/overlays/dev
 
@@ -124,15 +139,17 @@ This project includes a complete CI/CD pipeline using GitHub Actions with OIDC a
 
 **📖 Documentation:**
 - [Complete AKS Deployment Guide](docs/AKS_DEPLOYMENT.md) - Detailed setup instructions
+- [NGINX Ingress Setup](docs/NGINX_INGRESS.md) - Cost-optimized ingress configuration
 - [Quick Setup Checklist](docs/QUICK_SETUP.md) - Manual inputs and configuration
-- [Alternative NGINX Ingress](docs/NGINX_INGRESS.md) - NGINX ingress controller setup
+- [Terraform Documentation](terraform/README.md) - Infrastructure as Code details
 
 **🚀 Features:**
-- OIDC authentication with Azure
-- Automated Docker image builds
-- GitHub Container Registry integration
+- Complete Terraform Infrastructure as Code
+- OIDC authentication with Azure (no secrets required)
+- Automated Docker image builds with GitHub Container Registry
 - Environment-specific deployments (dev/prod)
-- Resource optimization for Azure free tier
+- Cost-optimized for Azure free tier
+- NGINX Ingress with Basic Load Balancer for cost savings
 - Manual and automatic deployment triggers
 
 ## 📊 Sample Data

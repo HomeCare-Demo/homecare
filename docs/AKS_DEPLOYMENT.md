@@ -13,20 +13,23 @@ This guide provides step-by-step instructions for setting up and deploying the H
 
 ### Option A: Automated Setup (Recommended)
 
-Use the provided setup script for automated configuration:
+Use the provided Terraform configuration and NGINX ingress scripts for automated setup:
 
 ```bash
-# Make the script executable
-chmod +x scripts/setup-aks.sh
+# Initialize Terraform infrastructure
+cd terraform
+terraform init
+terraform plan
+terraform apply
 
-# Run the setup script
-./scripts/setup-aks.sh
+# Install NGINX Ingress Controller
+./scripts/install-nginx-ingress.sh
 ```
 
 The script will:
 - Check for existing resources and skip creation if they exist
 - Create resource group and AKS cluster with optimal settings
-- Set up Application Gateway and AGIC (Application Gateway Ingress Controller)
+- Install NGINX Ingress Controller for cost-effective load balancing
 - Create Azure AD app registration with OIDC
 - Configure all necessary permissions and federated identity credentials
 - Generate configuration file with all required values
@@ -44,15 +47,15 @@ RESOURCE_GROUP="homecare-rg"
 LOCATION="eastus"
 CLUSTER_NAME="homecare-aks"
 APP_NAME="homecare-app"
-APPGW_NAME="homecare-appgw"
 VNET_NAME="homecare-vnet"
-PIP_NAME="homecare-pip"
 
 # Create resource group
 az group create --name $RESOURCE_GROUP --location $LOCATION
 ```
 
-### 1.2 Create AKS Cluster and Application Gateway
+### 1.2 Create AKS Cluster
+
+Create the Azure Kubernetes Service cluster:
 
 Create AKS cluster with optimized settings for single node:
 
@@ -70,84 +73,23 @@ az aks create \
   --network-plugin-mode overlay
 ```
 
-Create networking infrastructure for Application Gateway:
+### 1.3 Install NGINX Ingress Controller
+
+Install NGINX Ingress Controller for cost-effective load balancing:
 
 ```bash
-# Create virtual network
-az network vnet create \
-  --resource-group $RESOURCE_GROUP \
-  --name $VNET_NAME \
-  --location $LOCATION \
-  --address-prefixes 10.0.0.0/16
+# Install NGINX Ingress Controller using the provided script
+./scripts/install-nginx-ingress.sh
 
-# Create subnet for Application Gateway
-az network vnet subnet create \
-  --resource-group $RESOURCE_GROUP \
-  --vnet-name $VNET_NAME \
-  --name appgw-subnet \
-  --address-prefixes 10.0.1.0/24
-
-# Create public IP for Application Gateway
-az network public-ip create \
-  --resource-group $RESOURCE_GROUP \
-  --name $PIP_NAME \
-  --location $LOCATION \
-  --allocation-method Static \
-  --sku Standard
-
-# Create Application Gateway (Standard first, then update to Basic)
-az network application-gateway create \
-  --resource-group $RESOURCE_GROUP \
-  --name $APPGW_NAME \
-  --location $LOCATION \
-  --capacity 1 \
-  --sku Standard_Small \
-  --vnet-name $VNET_NAME \
-  --subnet appgw-subnet \
-  --public-ip-address $PIP_NAME \
-  --servers "" \
-  --http-settings-cookie-based-affinity Disabled \
-  --http-settings-port 80 \
-  --http-settings-protocol Http \
-  --frontend-port 80
-
-# Update to Basic SKU (Azure CLI doesn't support Basic in create command)
-az network application-gateway update \
-  --resource-group $RESOURCE_GROUP \
-  --name $APPGW_NAME \
-  --sku Basic \
-  --capacity 1
-
-# Enable AGIC addon
-az aks enable-addons \
-  --resource-group $RESOURCE_GROUP \
-  --name $CLUSTER_NAME \
-  --addons ingress-appgw \
-  --appgw-name $APPGW_NAME
+# Or install manually with Helm
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+helm install ingress-nginx ingress-nginx/ingress-nginx \
+  --namespace ingress-nginx \
+  --create-namespace \
+  --set controller.service.type=LoadBalancer \
+  --set controller.service.annotations."service\.beta\.kubernetes\.io/azure-load-balancer-sku"="basic"
 ```
-
-### 1.3 Install Application Gateway Ingress Controller (Optional)
-
-For production environments, you may want to use Application Gateway:
-
-```bash
-# Create Application Gateway
-az network application-gateway create \
-  --name homecare-appgw \
-  --resource-group $RESOURCE_GROUP \
-  --location $LOCATION \
-  --capacity 2 \
-  --sku Standard_v2 \
-  --subnet-address-prefix 10.0.0.0/24 \
-  --vnet-name homecare-vnet \
-  --vnet-address-prefix 10.0.0.0/16 \
-  --public-ip-address homecare-pip
-
-# Enable AGIC addon
-az aks enable-addons \
-  --resource-group $RESOURCE_GROUP \
-  --name $CLUSTER_NAME \
-  --addons ingress-appgw \
   --appgw-name homecare-appgw
 ```
 
@@ -302,20 +244,18 @@ The workflow supports deployment through:
 
 ### 4.3 DNS Configuration
 
-After setup, configure your DNS provider to point to the Application Gateway:
+After setup, configure your DNS provider to point to the NGINX Ingress Load Balancer:
 
 ```bash
-# Get the Application Gateway public IP
-az network public-ip show \
-  --resource-group $RESOURCE_GROUP \
-  --name $PIP_NAME \
-  --query ipAddress \
-  --output tsv
+# Get the NGINX Ingress Load Balancer public IP
+kubectl get service ingress-nginx-controller \
+  --namespace ingress-nginx \
+  --output jsonpath='{.status.loadBalancer.ingress[0].ip}'
 ```
 
-Configure these DNS records:
-- `*.homecareapp.xyz  A  <AGIC_PUBLIC_IP>`
-- `homecareapp.xyz    A  <AGIC_PUBLIC_IP>`
+Configure these DNS records with your DNS provider:
+- `*.homecareapp.xyz  A  <NGINX_LOAD_BALANCER_IP>`
+- `homecareapp.xyz    A  <NGINX_LOAD_BALANCER_IP>`
 
 ### 4.4 Monitor Deployment
 
@@ -329,7 +269,7 @@ kubectl get svc -n homecare-dev
 kubectl get ingress -n homecare-dev
 
 # Test application access
-curl -H "Host: dev.homecareapp.xyz" http://<AGIC_PUBLIC_IP>
+curl -H "Host: dev.homecareapp.xyz" http://<NGINX_LOAD_BALANCER_IP>
 
 # Check logs
 kubectl logs -f deployment/homecare-app -n homecare-dev
@@ -352,11 +292,11 @@ The configuration is optimized for Azure free tier with single-node deployment:
 **Monthly Costs (East US)**:
 - **AKS Control Plane**: Free (free tier)
 - **Standard_D2plds_v5 VM**: ~$60-80/month
-- **Application Gateway Standard_v2**: ~$20-30/month
+- **NGINX Ingress Load Balancer**: ~$5-10/month (Basic Load Balancer)
 - **Storage**: ~$5-10/month for managed disks
 - **Network**: Minimal for basic setup
 
-**Total Estimated Cost**: ~$85-120/month
+**Total Estimated Cost**: ~$70-100/month
 
 ### 5.3 Cost Optimization Tips
 

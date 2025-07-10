@@ -20,10 +20,9 @@ resource "azurerm_kubernetes_cluster" "homecare" {
   network_profile {
     network_plugin = "azure"
     network_mode   = "transparent"
-  }
-
-  ingress_application_gateway {
-    gateway_id = azurerm_application_gateway.homecare.id
+    load_balancer_sku = "basic"
+    service_cidr      = "172.16.0.0/16"
+    dns_service_ip    = "172.16.0.10"
   }
 
   tags = local.tags

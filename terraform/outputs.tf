@@ -8,9 +8,13 @@ output "aks_cluster_name" {
   value       = azurerm_kubernetes_cluster.homecare.name
 }
 
-output "application_gateway_public_ip" {
-  description = "Public IP address of the Application Gateway"
-  value       = azurerm_public_ip.appgw.ip_address
+output "cluster_info" {
+  description = "AKS cluster information"
+  value = {
+    cluster_name = azurerm_kubernetes_cluster.homecare.name
+    resource_group = azurerm_resource_group.homecare.name
+    location = azurerm_resource_group.homecare.location
+  }
 }
 
 output "azure_client_id" {
@@ -46,22 +50,19 @@ output "github_secrets_summary" {
 output "dns_configuration" {
   description = "DNS configuration instructions"
   value = {
-    application_gateway_ip = azurerm_public_ip.appgw.ip_address
-    dns_records = [
-      "*.homecareapp.xyz  A  ${azurerm_public_ip.appgw.ip_address}",
-      "homecareapp.xyz    A  ${azurerm_public_ip.appgw.ip_address}"
+    instructions = "After installing NGINX Ingress Controller, get the external IP with: kubectl get svc -n ingress-nginx ingress-nginx-controller"
+    dns_records_template = [
+      "*.homecareapp.xyz  A  <NGINX_INGRESS_IP>",
+      "homecareapp.xyz    A  <NGINX_INGRESS_IP>"
     ]
+    note = "Replace <NGINX_INGRESS_IP> with the actual LoadBalancer IP from the NGINX Ingress service"
   }
-  
 }
 
-output "client_certificate" {
-  value     = azurerm_kubernetes_cluster.homecare.kube_config[0].client_certificate
-  sensitive = true
-}
+# Kubernetes configuration outputs removed to avoid connectivity issues
+# Use 'az aks get-credentials' command instead to configure kubectl
 
-output "kube_config" {
-  value = azurerm_kubernetes_cluster.homecare.kube_config_raw
-
-  sensitive = true
+output "kubectl_config_command" {
+  description = "Command to configure kubectl for this AKS cluster"
+  value = "az aks get-credentials --resource-group ${azurerm_resource_group.homecare.name} --name ${azurerm_kubernetes_cluster.homecare.name}"
 }
