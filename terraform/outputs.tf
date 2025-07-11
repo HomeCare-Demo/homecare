@@ -66,3 +66,36 @@ output "kubectl_config_command" {
   description = "Command to configure kubectl for this AKS cluster"
   value = "az aks get-credentials --resource-group ${azurerm_resource_group.homecare.name} --name ${azurerm_kubernetes_cluster.homecare.name}"
 }
+
+output "github_configuration_summary" {
+  description = "GitHub repository configuration summary"
+  value = {
+    repository_url = "https://github.com/mvkaran/homecare"
+    environments_created = ["dev", "prod"]
+    secrets_configured = [
+      "AZURE_CLIENT_ID",
+      "AZURE_TENANT_ID", 
+      "AZURE_SUBSCRIPTION_ID",
+      "AZURE_RESOURCE_GROUP",
+      "AZURE_CLUSTER_NAME"
+    ]
+    workflow_file = ".github/workflows/deploy.yml"
+    deployment_notes = [
+      "Development environment: Allows custom branch deployments",
+      "Production environment: Only protected branches allowed",
+      "Manual deployments available via GitHub Actions workflow_dispatch",
+      "Automatic production deployment on GitHub releases"
+    ]
+  }
+}
+
+output "deployment_instructions" {
+  description = "Instructions for deploying the application"
+  value = {
+    manual_deployment = "Go to Actions tab → Deploy to AKS → Run workflow"
+    release_deployment = "Create a GitHub release to automatically deploy to production"
+    dev_url_template = "https://dev.homecareapp.xyz (after DNS configuration)"
+    prod_url_template = "https://homecareapp.xyz (after DNS configuration)"
+    monitoring = "Check deployment status in GitHub Actions and AKS pod logs"
+  }
+}

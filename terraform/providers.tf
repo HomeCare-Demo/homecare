@@ -18,3 +18,9 @@ provider "azuread" {
   client_secret = var.password
   tenant_id = var.tenantId
 }
+
+# Configure the GitHub Provider
+provider "github" {
+  # Uses GITHUB_TOKEN environment variable
+  owner = "mvkaran"
+}

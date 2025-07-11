@@ -1,6 +1,14 @@
 # terraform.tfvars.example
 # Copy this file to terraform.tfvars and customize the values
 
+# Azure Authentication (required)
+appId          = "your-azure-app-id"
+password       = "your-azure-app-secret"
+tenantId       = "your-azure-tenant-id"  
+subscriptionId = "your-azure-subscription-id"
+
+# Note: GitHub token should be set as GITHUB_TOKEN environment variable in Terraform Cloud
+
 # Basic Configuration
 resource_group_name = "homecare"
 location           = "Central India"

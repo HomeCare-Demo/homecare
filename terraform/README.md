@@ -15,10 +15,12 @@ This directory contains Terraform configuration files to provision the complete 
 - **azure-ad.tf**: Azure Active Directory application and service principal
 - **role-assignments.tf**: RBAC role assignments for service principal
 - **federated-identity.tf**: GitHub Actions OIDC identity federation setup
+- **github.tf**: GitHub repository configuration, environments, and secrets management
 - **outputs.tf**: Output values for use in other configurations or CI/CD
 
 ## What gets created
 
+### Azure Resources
 - **Resource Group**: Contains all resources
 - **Virtual Network**: With subnets for Application Gateway and AKS
 - **Application Gateway**: Standard Small tier (most cost-effective available in Terraform)
@@ -27,12 +29,19 @@ This directory contains Terraform configuration files to provision the complete 
 - **Service Principal**: With appropriate role assignments
 - **Federated Identity Credentials**: For secure GitHub Actions deployment
 
+### GitHub Configuration
+- **Repository Environments**: `dev` and `prod` environments with protection rules
+- **Repository Secrets**: Azure credentials for OIDC authentication
+- **Branch Protection**: Main branch protection with PR reviews and status checks
+- **Repository Settings**: Security settings, topics, and merge policies
+
 ## Prerequisites
 
 1. **Azure CLI**: Installed and authenticated (`az login`)
 2. **Terraform**: Installed locally or use Terraform Cloud
 3. **Terraform Cloud Account**: For remote state management
 4. **GitHub Repository**: Fork of mvkaran/homecare
+5. **GitHub Personal Access Token**: With `repo`, `admin:repo_hook`, and `admin:org` permissions
 
 ## Setup Instructions
 
@@ -197,6 +206,7 @@ terraform/
 ├── azure-ad.tf             # Azure AD Application and Service Principal
 ├── role-assignments.tf     # Azure RBAC role assignments
 ├── federated-identity.tf   # GitHub Actions OIDC credentials
+├── github.tf                # GitHub repository configuration
 ├── outputs.tf              # Output definitions
 ├── terraform.tfvars.example # Example variables (reference only)
 └── README.md               # This file
