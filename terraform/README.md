@@ -149,7 +149,7 @@ The remote state configuration is already set up in `main.tf`.
 The infrastructure is optimized for cost:
 
 - **Application Gateway**: Standard Small tier (smallest available in Terraform)
-- **AKS**: Free tier with single Standard_D2plds_v5 node
+- **AKS**: Free tier with single Standard_D2plds_v5 node (ARM64-based)
 - **Networking**: Minimal configuration
 - **Storage**: Standard managed disks
 

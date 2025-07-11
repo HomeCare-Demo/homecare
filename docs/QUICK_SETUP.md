@@ -117,9 +117,9 @@ kubectl logs -f deployment/homecare-app -n homecare-dev
 
 ## Estimated Costs (Free Tier)
 
-- **AKS Cluster**: Free (with 1 Standard_D2plds_v5 node)
-- **Compute**: ~$60-80/month for Standard_D2plds_v5 VM
+- **AKS Cluster**: Free (with 1 Standard_D2plds_v5 ARM64 node)
+- **Compute**: ~$60-80/month for Standard_D2plds_v5 VM (ARM64-based)
 - **Storage**: ~$5-10/month for managed disks
 - **Networking**: Minimal for basic setup
 
-**Note**: Monitor usage to stay within free tier limits and avoid unexpected charges.
+**Note**: ARM64-based VMs provide better price/performance ratio. Monitor usage to stay within free tier limits and avoid unexpected charges.

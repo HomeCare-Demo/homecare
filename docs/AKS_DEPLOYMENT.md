@@ -284,7 +284,7 @@ The configuration is optimized for Azure free tier with single-node deployment:
 - **Base Configuration**: 1 replica, 64Mi memory request, 128Mi limit
 - **Dev Environment**: 1 replica, 32Mi memory request, 64Mi limit  
 - **Prod Environment**: 1 replica, 64Mi memory request, 128Mi limit
-- **Node Size**: Standard_D2plds_v5 (2 vCPUs, 4 GB RAM, ARM-based)
+- **Node Size**: Standard_D2plds_v5 (2 vCPUs, 4 GB RAM, ARM64-based)
 - **Network**: Azure CNI Overlay with Cilium dataplane for efficiency
 
 ### 5.2 Cost Estimates
@@ -328,6 +328,11 @@ kubectl top pods -n homecare-prod
 - Check AKS cluster status: `az aks show --resource-group $RESOURCE_GROUP --name $CLUSTER_NAME`
 - Verify kubectl context: `kubectl config current-context`
 - Check pod logs: `kubectl logs -f deployment/homecare-app -n homecare-dev`
+
+**ImagePullBackOff (Platform Mismatch)**:
+- Verify Docker images support ARM64 architecture
+- Ensure GitHub Actions builds multi-platform images (linux/amd64,linux/arm64)
+- Check container registry authentication with pull secrets
 
 **Resource Limits Exceeded**:
 - Monitor resource usage: `kubectl top pods -n homecare-dev`

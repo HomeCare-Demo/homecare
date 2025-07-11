@@ -9,7 +9,7 @@ resource "azurerm_kubernetes_cluster" "homecare" {
   default_node_pool {
     name           = "default"
     node_count     = 1
-    vm_size        = "Standard_D2plds_v5"
+    vm_size        = "Standard_D2plds_v5"  # ARM64-based VM for cost optimization
     vnet_subnet_id = azurerm_subnet.aks.id
   }
 

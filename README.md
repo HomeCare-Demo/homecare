@@ -86,6 +86,8 @@ The application features a cohesive design system with:
 
 ## 🐳 Docker Support
 
+The application includes multi-platform Docker support for both AMD64 and ARM64 architectures, making it compatible with various deployment environments including ARM-based cloud instances.
+
 ### Build and Run with Docker
 
 ```bash
@@ -94,6 +96,13 @@ docker build -t homecare-app .
 
 # Run the container
 docker run -p 3000:3000 homecare-app
+```
+
+### Multi-Platform Build
+
+```bash
+# Build for multiple platforms (requires Docker Buildx)
+docker buildx build --platform linux/amd64,linux/arm64 -t homecare-app .
 ```
 
 ### Docker Compose
@@ -146,9 +155,9 @@ This project includes a complete CI/CD pipeline using GitHub Actions with OIDC a
 **🚀 Features:**
 - Complete Terraform Infrastructure as Code
 - OIDC authentication with Azure (no secrets required)
-- Automated Docker image builds with GitHub Container Registry
+- Multi-platform Docker image builds (AMD64/ARM64) with GitHub Container Registry
 - Environment-specific deployments (dev/prod)
-- Cost-optimized for Azure free tier
+- Cost-optimized ARM64-based AKS cluster for Azure free tier
 - NGINX Ingress with Basic Load Balancer for cost savings
 - Manual and automatic deployment triggers
 

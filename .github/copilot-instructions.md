@@ -209,6 +209,7 @@ import { cn } from '@/lib/utils'
 
 ### Docker
 - Multi-stage build for production
+- Multi-platform support (linux/amd64, linux/arm64)
 - Non-root user for security
 - Health checks implemented
 - Standalone Next.js output
@@ -221,6 +222,7 @@ import { cn } from '@/lib/utils'
 
 ### GitHub Actions CI/CD
 - OIDC authentication with Azure (no secrets)
+- Multi-platform Docker image building (AMD64/ARM64)
 - Automated Docker image building and pushing
 - Environment-specific deployments
 - Manual and release-triggered workflows
@@ -312,7 +314,8 @@ interface Task {
 ## Infrastructure Details
 
 ### Azure AKS Configuration
-- **VM Size**: Standard_D2plds_v5 (ARM-based, cost-optimized)
+- **VM Size**: Standard_D2plds_v5 (ARM64-based, cost-optimized)
+- **Architecture**: ARM64 (linux/arm64)
 - **Network**: Azure CNI Overlay mode
 - **Free Tier**: Compatible with Azure free tier
 - **Single Node**: 1 node pool for cost optimization
@@ -327,9 +330,10 @@ interface Task {
 ### Cost Optimization
 - Single replica deployments for all environments
 - Minimal resource requests and limits
-- ARM-based VM for better price/performance
+- ARM64-based VM for better price/performance
 - Free tier AKS control plane
 - NGINX Ingress with Basic Load Balancer for cost-effective load balancing
+- Multi-platform Docker images optimized for ARM64 and AMD64
 - Estimated monthly cost: ~$15-25 for basic workloads
 
 ## Performance Considerations
