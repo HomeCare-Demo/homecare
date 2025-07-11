@@ -15,6 +15,12 @@ resource "github_repository_environment" "prod" {
   environment = "prod"
 }
 
+# Preview environment for pull request previews
+resource "github_repository_environment" "preview" {
+  repository  = "homecare"
+  environment = "preview"
+}
+
 # Repository secrets for Azure authentication
 resource "github_actions_secret" "azure_client_id" {
   repository      = "homecare"
@@ -53,7 +59,8 @@ output "github_configuration" {
     repository = data.github_repository.homecare.full_name
     environments = [
       github_repository_environment.dev.environment,
-      github_repository_environment.prod.environment
+      github_repository_environment.prod.environment,
+      github_repository_environment.preview.environment
     ]
     secrets_configured = [
       "AZURE_CLIENT_ID",
@@ -75,6 +82,9 @@ output "deployment_environments" {
     }
     prod = {
       name = github_repository_environment.prod.environment
+    }
+    preview = {
+      name = github_repository_environment.preview.environment
     }
   }
 }
