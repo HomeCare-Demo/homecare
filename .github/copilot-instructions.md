@@ -225,6 +225,14 @@ import { cn } from '@/lib/utils'
 - Environment-specific deployments
 - Manual and release-triggered workflows
 
+### GitHub Actions OIDC Authentication
+- **Federated Identity Credentials**: Must use specific subject claims, not wildcards
+- **Subject Pattern for Environments**: `repo:owner/repo:environment:env_name` (e.g., `repo:mvkaran/homecare:environment:dev`)
+- **Subject Pattern for Branches**: `repo:owner/repo:ref:refs/heads/branch_name`
+- **Subject Pattern for Tags**: `repo:owner/repo:ref:refs/tags/tag_name`
+- **Best Practice**: Create separate federated identity credentials for each environment (dev, prod) rather than using wildcards
+- **Common Issue**: Using `repo:owner/repo:environment:*` wildcard may not work reliably; use specific environment names instead
+
 ### Commands
 ```bash
 # Infrastructure setup with Terraform

@@ -86,6 +86,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .                    # Build context (repository root)
+        platforms: linux/amd64,linux/arm64  # Support both AMD64 and ARM64 architectures
         push: true                    # Push to registry
         tags: ${{ steps.meta.outputs.tags }}    # Apply generated tags
         labels: ${{ steps.meta.outputs.labels }} # Apply generated labels

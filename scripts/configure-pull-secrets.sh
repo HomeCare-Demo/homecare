@@ -13,9 +13,9 @@ set -euo pipefail
 read_secret() {
     local prompt="$1"
     local secret
-    echo -n "$prompt"
+    echo -n "$prompt" >&2
     read -s secret
-    echo
+    echo >&2
     echo "$secret"
 }
 
