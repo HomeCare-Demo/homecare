@@ -10,6 +10,26 @@ resource "azuread_application_federated_identity_credential" "all_branches" {
   subject        = "repo:${local.github_repo}:ref:refs/heads/*"
 }
 
+# Environment deployments - dev environment
+resource "azuread_application_federated_identity_credential" "environment_dev" {
+  application_id = azuread_application.github_actions.id
+  display_name   = "homecare-environment-dev"
+  description    = "Dev environment deployment with GitHub environment protection"
+  audiences      = ["api://AzureADTokenExchange"]
+  issuer         = "https://token.actions.githubusercontent.com"
+  subject        = "repo:${local.github_repo}:environment:dev"
+}
+
+# Environment deployments - prod environment
+resource "azuread_application_federated_identity_credential" "environment_prod" {
+  application_id = azuread_application.github_actions.id
+  display_name   = "homecare-environment-prod"
+  description    = "Prod environment deployment with GitHub environment protection"
+  audiences      = ["api://AzureADTokenExchange"]
+  issuer         = "https://token.actions.githubusercontent.com"
+  subject        = "repo:${local.github_repo}:environment:prod"
+}
+
 # Release deployments (tags)
 resource "azuread_application_federated_identity_credential" "releases" {
   application_id = azuread_application.github_actions.id
