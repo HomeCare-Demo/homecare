@@ -229,11 +229,12 @@ import { cn } from '@/lib/utils'
 
 ### GitHub Actions OIDC Authentication
 - **Federated Identity Credentials**: Must use specific subject claims, not wildcards
-- **Subject Pattern for Environments**: `repo:owner/repo:environment:env_name` (e.g., `repo:mvkaran/homecare:environment:dev`)
+- **Subject Pattern for Environments**: `repo:owner/repo:environment:env_name` (e.g., `repo:mvkaran/homecare:environment:preview`)
 - **Subject Pattern for Branches**: `repo:owner/repo:ref:refs/heads/branch_name`
 - **Subject Pattern for Tags**: `repo:owner/repo:ref:refs/tags/tag_name`
-- **Best Practice**: Create separate federated identity credentials for each environment (dev, prod) rather than using wildcards
+- **Best Practice**: Create separate federated identity credentials for each environment (dev, prod, preview) rather than using wildcards
 - **Common Issue**: Using `repo:owner/repo:environment:*` wildcard may not work reliably; use specific environment names instead
+- **Preview Environment**: Uses `preview` GitHub environment for PR-based deployments
 
 ### Commands
 ```bash
@@ -323,6 +324,7 @@ interface Task {
 ### DNS and Ingress
 - **Production Domain**: homecareapp.xyz
 - **Development Domain**: dev.homecareapp.xyz
+- **Preview Environment Domain**: `<username>-<pr>-<commit>.dev.homecareapp.xyz`
 - **Wildcard DNS**: *.homecareapp.xyz → Load Balancer IP
 - **SSL**: Handled by ingress controller
 - **Ingress Controller**: NGINX Ingress Controller with Basic Load Balancer
