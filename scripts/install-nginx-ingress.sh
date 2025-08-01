@@ -19,12 +19,17 @@ RELEASE_NAME="ingress-nginx"
 CHART_VERSION="4.8.3"
 TIMEOUT="600s"
 
+# cert-manager configuration
+CERTMANAGER_NAMESPACE="cert-manager"
+CERTMANAGER_VERSION="v1.13.2"
+LETSENCRYPT_EMAIL="${LETSENCRYPT_EMAIL:-admin@homecareapp.xyz}"
+
 # Resource group and cluster name (update these to match your setup)
 RESOURCE_GROUP="${AZURE_RESOURCE_GROUP:-homecare-app}"
 CLUSTER_NAME="${AZURE_CLUSTER_NAME:-homecare-app}"
 
-echo -e "${BLUE}🚀 HomeCare NGINX Ingress Controller Installation${NC}"
-echo -e "${BLUE}=================================================${NC}"
+echo -e "${BLUE}🚀 HomeCare NGINX Ingress Controller + cert-manager Installation${NC}"
+echo -e "${BLUE}=================================================================${NC}"
 
 # Function to print status messages
 print_status() {
@@ -224,6 +229,114 @@ fi
 
 print_status "NGINX Ingress Controller ${INSTALL_MODE}ed successfully"
 
+# Install cert-manager for Let's Encrypt SSL certificates
+echo -e "\n${BLUE}Installing cert-manager for Let's Encrypt SSL...${NC}"
+
+# Check if cert-manager is already installed
+if helm list -n "${CERTMANAGER_NAMESPACE}" | grep -q "cert-manager"; then
+    print_warning "cert-manager is already installed"
+    
+    read -p "Do you want to upgrade cert-manager? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        CERTMANAGER_INSTALL_MODE="upgrade"
+    else
+        print_info "Skipping cert-manager installation"
+        CERTMANAGER_INSTALL_MODE="skip"
+    fi
+else
+    CERTMANAGER_INSTALL_MODE="install"
+fi
+
+if [ "${CERTMANAGER_INSTALL_MODE}" != "skip" ]; then
+    # Add cert-manager Helm repository
+    echo -e "\n${BLUE}Adding cert-manager Helm repository...${NC}"
+    helm repo add jetstack https://charts.jetstack.io
+    helm repo update
+    print_status "cert-manager Helm repository added and updated"
+    
+    # Create cert-manager namespace
+    echo -e "\n${BLUE}Creating cert-manager namespace...${NC}"
+    kubectl create namespace "${CERTMANAGER_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
+    print_status "Namespace '${CERTMANAGER_NAMESPACE}' ready"
+    
+    # Install or upgrade cert-manager
+    if [ "${CERTMANAGER_INSTALL_MODE}" = "install" ]; then
+        echo -e "\n${BLUE}Installing cert-manager...${NC}"
+        helm install cert-manager jetstack/cert-manager \
+            --namespace "${CERTMANAGER_NAMESPACE}" \
+            --version "${CERTMANAGER_VERSION}" \
+            --set installCRDs=true \
+            --set global.leaderElection.namespace="${CERTMANAGER_NAMESPACE}" \
+            --timeout "${TIMEOUT}" \
+            --wait
+    else
+        echo -e "\n${BLUE}Upgrading cert-manager...${NC}"
+        helm upgrade cert-manager jetstack/cert-manager \
+            --namespace "${CERTMANAGER_NAMESPACE}" \
+            --version "${CERTMANAGER_VERSION}" \
+            --set installCRDs=true \
+            --set global.leaderElection.namespace="${CERTMANAGER_NAMESPACE}" \
+            --timeout "${TIMEOUT}" \
+            --wait
+    fi
+    
+    print_status "cert-manager ${CERTMANAGER_INSTALL_MODE}ed successfully"
+    
+    # Wait for cert-manager to be ready
+    echo -e "\n${BLUE}Waiting for cert-manager to be ready...${NC}"
+    kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=cert-manager -n "${CERTMANAGER_NAMESPACE}" --timeout=300s
+    print_status "cert-manager is ready"
+    
+    # Create Let's Encrypt ClusterIssuer
+    echo -e "\n${BLUE}Creating Let's Encrypt ClusterIssuer...${NC}"
+    cat > /tmp/letsencrypt-issuer.yaml << EOF
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    # The ACME server URL for Let's Encrypt production
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # Email address used for ACME registration
+    email: ${LETSENCRYPT_EMAIL}
+    # Name of a secret used to store the ACME account private key
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    # Enable the HTTP-01 challenge provider
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    # The ACME server URL for Let's Encrypt staging (for testing)
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    # Email address used for ACME registration
+    email: ${LETSENCRYPT_EMAIL}
+    # Name of a secret used to store the ACME account private key
+    privateKeySecretRef:
+      name: letsencrypt-staging
+    # Enable the HTTP-01 challenge provider
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+EOF
+    
+    kubectl apply -f /tmp/letsencrypt-issuer.yaml
+    print_status "Let's Encrypt ClusterIssuers created (production and staging)"
+    
+    # Clean up temporary file
+    rm -f /tmp/letsencrypt-issuer.yaml
+fi
+
 # Wait for LoadBalancer to get external IP
 echo -e "\n${BLUE}Waiting for LoadBalancer to get external IP...${NC}"
 print_info "This may take 2-5 minutes..."
@@ -263,6 +376,14 @@ print_status "Namespace: ${NAMESPACE}"
 print_status "Release: ${RELEASE_NAME}"
 print_status "Chart Version: ${CHART_VERSION}"
 
+if [ "${CERTMANAGER_INSTALL_MODE}" != "skip" ]; then
+    print_status "cert-manager is running"
+    print_status "cert-manager Namespace: ${CERTMANAGER_NAMESPACE}"
+    print_status "cert-manager Version: ${CERTMANAGER_VERSION}"
+    print_status "Let's Encrypt Email: ${LETSENCRYPT_EMAIL}"
+    print_status "ClusterIssuers created: letsencrypt-prod, letsencrypt-staging"
+fi
+
 if [ -n "$EXTERNAL_IP" ]; then
     print_status "LoadBalancer IP: ${EXTERNAL_IP}"
 else
@@ -282,11 +403,33 @@ else
     echo -e "   homecareapp.xyz    A  <EXTERNAL_IP>"
 fi
 echo
-echo -e "3. ${YELLOW}Deploy your application:${NC}"
-echo -e "   Your Kubernetes ingress resources should now work with NGINX Ingress Controller"
+echo -e "3. ${YELLOW}Update your Ingress resources for SSL:${NC}"
+echo -e "   Add these annotations to your ingress resources:"
+echo -e "   ${BLUE}cert-manager.io/cluster-issuer: \"letsencrypt-prod\"${NC}"
+echo -e "   ${BLUE}nginx.ingress.kubernetes.io/ssl-redirect: \"true\"${NC}"
+echo -e "   "
+echo -e "   Add TLS configuration:"
+echo -e "   ${BLUE}spec:${NC}"
+echo -e "   ${BLUE}  tls:${NC}"
+echo -e "   ${BLUE}  - hosts:${NC}"
+echo -e "   ${BLUE}    - your-domain.homecareapp.xyz${NC}"
+echo -e "   ${BLUE}    secretName: your-domain-tls${NC}"
 echo
-echo -e "4. ${YELLOW}Test the installation:${NC}"
+echo -e "4. ${YELLOW}Deploy your application:${NC}"
+echo -e "   Your Kubernetes ingress resources will now automatically get SSL certificates"
+echo
+echo -e "5. ${YELLOW}Monitor certificate creation:${NC}"
+echo -e "   kubectl get certificates --all-namespaces"
+echo -e "   kubectl describe certificate <certificate-name> -n <namespace>"
+echo
+echo -e "6. ${YELLOW}Test the installation:${NC}"
 echo -e "   kubectl get pods -n ${NAMESPACE}"
-echo -e "   kubectl get svc -n ${NAMESPACE}"
+echo -e "   kubectl get pods -n ${CERTMANAGER_NAMESPACE}"
+echo -e "   kubectl get clusterissuers"
 
-echo -e "\n${GREEN}✅ NGINX Ingress Controller installation completed!${NC}"
+echo -e "\n${GREEN}✅ NGINX Ingress Controller + cert-manager installation completed!${NC}"
+echo -e "\n${YELLOW}📝 Important Notes:${NC}"
+echo -e "• Use ${BLUE}letsencrypt-staging${NC} ClusterIssuer for testing to avoid rate limits"
+echo -e "• Use ${BLUE}letsencrypt-prod${NC} ClusterIssuer for production"
+echo -e "• Certificates will be automatically renewed before expiration"
+echo -e "• Make sure your domains point to the LoadBalancer IP before requesting certificates"

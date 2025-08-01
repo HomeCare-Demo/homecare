@@ -2,7 +2,13 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: homecare-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-staging"
 spec:
+  tls:
+  - hosts:
+    - dev.homecareapp.xyz
+    secretName: homecare-dev-tls
   rules:
   - host: dev.homecareapp.xyz
     http:
