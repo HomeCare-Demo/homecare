@@ -20,6 +20,17 @@ resource "azuread_application_federated_identity_credential" "environment_dev" {
   subject        = "repo:${local.github_repo}:environment:dev"
 }
 
+# Environment deployments - preview environment
+resource "azuread_application_federated_identity_credential" "environment_preview" {
+  application_id = azuread_application.github_actions.id
+  display_name   = "homecare-environment-preview"
+  description    = "Preview environment deployment with GitHub environment protection"
+  audiences      = ["api://AzureADTokenExchange"]
+  issuer         = "https://token.actions.githubusercontent.com"
+  subject        = "repo:${local.github_repo}:environment:preview"
+}
+
+
 # Environment deployments - prod environment
 resource "azuread_application_federated_identity_credential" "environment_prod" {
   application_id = azuread_application.github_actions.id
