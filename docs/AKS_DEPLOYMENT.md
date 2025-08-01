@@ -332,7 +332,7 @@ kubectl top pods -n homecare-prod
 **ImagePullBackOff (Platform Mismatch)**:
 - Verify Docker images support ARM64 architecture
 - Ensure GitHub Actions builds multi-platform images (linux/amd64,linux/arm64)
-- Check container registry authentication with pull secrets
+- Check if the container image exists in the public GitHub Container Registry
 
 **Resource Limits Exceeded**:
 - Monitor resource usage: `kubectl top pods -n homecare-dev`

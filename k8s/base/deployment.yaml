@@ -14,8 +14,6 @@ spec:
       labels:
         app: homecare-app
     spec:
-      imagePullSecrets:
-      - name: ghcr-pull-secret
       containers:
       - name: homecare-app
         image: homecare-app:latest
