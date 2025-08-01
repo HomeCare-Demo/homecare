@@ -17,12 +17,12 @@ cluster_name       = "homecare"
 app_name          = "homecare-app"
 
 # GitHub Repository (REQUIRED - Update this with your repository)
-github_repo = "mvkaran/homecare"
+github_repo = "homecare-demo/homecare"
 
 # Tags for all resources
 tags = {
   Project     = "HomeCare"
   Environment = "Production"
   ManagedBy   = "Terraform"
-  Owner       = "mvkaran"
+  Owner       = "homecare-demo"
 }

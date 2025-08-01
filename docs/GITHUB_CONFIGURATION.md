@@ -125,7 +125,7 @@ After applying the configuration, Terraform provides helpful outputs:
 
 ```hcl
 github_configuration_summary = {
-  repository_url = "https://github.com/mvkaran/homecare"
+  repository_url = "https://github.com/homecare-demo/homecare"
   environments_created = ["dev", "prod"]
   secrets_configured = [
     "AZURE_CLIENT_ID",
@@ -182,18 +182,18 @@ If you prefer to configure GitHub manually instead of using Terraform:
 ### 1. Create Environments
 ```bash
 # Using GitHub CLI
-gh api repos/mvkaran/homecare/environments -f name=dev
-gh api repos/mvkaran/homecare/environments -f name=prod
+gh api repos/homecare-demo/homecare/environments -f name=dev
+gh api repos/homecare-demo/homecare/environments -f name=prod
 ```
 
 ### 2. Add Secrets
 ```bash
 # Using GitHub CLI (replace <VALUE> with actual values)
-gh secret set AZURE_CLIENT_ID -b "<VALUE>" --repo mvkaran/homecare
-gh secret set AZURE_TENANT_ID -b "<VALUE>" --repo mvkaran/homecare
-gh secret set AZURE_SUBSCRIPTION_ID -b "<VALUE>" --repo mvkaran/homecare
-gh secret set AZURE_RESOURCE_GROUP -b "<VALUE>" --repo mvkaran/homecare
-gh secret set AZURE_CLUSTER_NAME -b "<VALUE>" --repo mvkaran/homecare
+gh secret set AZURE_CLIENT_ID -b "<VALUE>" --repo homecare-demo/homecare
+gh secret set AZURE_TENANT_ID -b "<VALUE>" --repo homecare-demo/homecare
+gh secret set AZURE_SUBSCRIPTION_ID -b "<VALUE>" --repo homecare-demo/homecare
+gh secret set AZURE_RESOURCE_GROUP -b "<VALUE>" --repo homecare-demo/homecare
+gh secret set AZURE_CLUSTER_NAME -b "<VALUE>" --repo homecare-demo/homecare
 ```
 
 ### 3. Configure Branch Protection

@@ -40,7 +40,7 @@ This directory contains Terraform configuration files to provision the complete 
 1. **Azure CLI**: Installed and authenticated (`az login`)
 2. **Terraform**: Installed locally or use Terraform Cloud
 3. **Terraform Cloud Account**: For remote state management
-4. **GitHub Repository**: Fork of mvkaran/homecare
+4. **GitHub Repository**: Fork of homecare-demo/homecare
 5. **GitHub Personal Access Token**: With `repo`, `admin:repo_hook`, and `admin:org` permissions
 
 ## Setup Instructions
@@ -66,7 +66,7 @@ Since you're using Terraform Cloud, you need to set up Azure service principal a
    ```
 
 2. **Add Environment Variables in Terraform Cloud**:
-   - Go to: https://app.terraform.io/app/mvkaran/workspaces/homecare
+   - Go to: https://app.terraform.io/app/homecare-demo/workspaces/homecare
    - Navigate to **Variables** tab
    - Add these **Environment Variables** (marked as sensitive):
      - `ARM_CLIENT_ID` = Application (client) ID from service principal
@@ -80,7 +80,7 @@ All configuration is pre-set using locals in `locals.tf`. The default values are
 
 - **Resource Group**: `homecare`
 - **Location**: `Central India`  
-- **GitHub Repository**: `mvkaran/homecare`
+- **GitHub Repository**: `homecare-demo/homecare`
 - **Cluster Name**: `homecare`
 
 If you need to customize any values, edit the `locals.tf` file before deployment.
@@ -139,7 +139,7 @@ Configure these DNS A records:
 
 This configuration uses Terraform Cloud for remote state management:
 
-- **Organization**: mvkaran
+- **Organization**: homecare-demo
 - **Workspace**: homecare
 
 The remote state configuration is already set up in `main.tf`.

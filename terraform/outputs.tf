@@ -70,7 +70,7 @@ output "kubectl_config_command" {
 output "github_configuration_summary" {
   description = "GitHub repository configuration summary"
   value = {
-    repository_url = "https://github.com/mvkaran/homecare"
+    repository_url = "https://github.com/homecare-demo/homecare"
     environments_created = ["dev", "prod"]
     secrets_configured = [
       "AZURE_CLIENT_ID",

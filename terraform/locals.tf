@@ -5,7 +5,7 @@ locals {
   prefix             = "homecare-app"
   cluster_name       = "homecare-app"
   app_name          = "homecare-app"
-  github_repo       = "mvkaran/homecare"
+  github_repo       = "homecare-demo/homecare"
 
   # Networking
   vnet_address_space     = ["10.0.0.0/16"]
@@ -16,6 +16,6 @@ locals {
     Project     = "HomeCare"
     Environment = "Production"
     ManagedBy   = "Terraform"
-    Owner       = "mvkaran"
+    Owner       = "homecare-demo"
   }
 }

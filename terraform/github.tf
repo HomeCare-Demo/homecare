@@ -1,6 +1,6 @@
 # GitHub repository reference
 data "github_repository" "homecare" {
-  full_name = "mvkaran/homecare"
+  full_name = "homecare-demo/homecare"
 }
 
 # Development environment

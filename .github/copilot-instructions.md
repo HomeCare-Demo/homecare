@@ -229,7 +229,7 @@ import { cn } from '@/lib/utils'
 
 ### GitHub Actions OIDC Authentication
 - **Federated Identity Credentials**: Must use specific subject claims, not wildcards
-- **Subject Pattern for Environments**: `repo:owner/repo:environment:env_name` (e.g., `repo:mvkaran/homecare:environment:preview`)
+- **Subject Pattern for Environments**: `repo:owner/repo:environment:env_name` (e.g., `repo:homecare-demo/homecare:environment:preview`)
 - **Subject Pattern for Branches**: `repo:owner/repo:ref:refs/heads/branch_name`
 - **Subject Pattern for Tags**: `repo:owner/repo:ref:refs/tags/tag_name`
 - **Best Practice**: Create separate federated identity credentials for each environment (dev, prod, preview) rather than using wildcards

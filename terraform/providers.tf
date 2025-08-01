@@ -22,5 +22,5 @@ provider "azuread" {
 # Configure the GitHub Provider
 provider "github" {
   # Uses GITHUB_TOKEN environment variable
-  owner = "mvkaran"
+  owner = "homecare-demo"
 }

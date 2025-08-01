@@ -9,7 +9,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 OPERATOR_DIR="${PROJECT_ROOT}/k8s/operators"
-REGISTRY="ghcr.io/mvkaran/homecare"
+REGISTRY="ghcr.io/homecare-demo/homecare"
 OPERATOR_IMAGE="${REGISTRY}/homecare-preview-operator"
 
 # Default environment
@@ -79,15 +79,15 @@ authenticate_registry() {
     
     # Try to authenticate using GitHub token if available
     if [[ -n "${GITHUB_TOKEN:-}" ]]; then
-        echo "$GITHUB_TOKEN" | docker login ghcr.io -u mvkaran --password-stdin
+        echo "$GITHUB_TOKEN" | docker login ghcr.io -u homecare-demo --password-stdin
         echo "✅ Authenticated using GITHUB_TOKEN"
     else
         echo "⚠️  GITHUB_TOKEN not found. You may need to login manually:"
-        echo "   docker login ghcr.io -u mvkaran"
+        echo "   docker login ghcr.io -u homecare-demo"
         echo "   or set GITHUB_TOKEN environment variable"
         
         # Try interactive login
-        docker login ghcr.io -u mvkaran || {
+        docker login ghcr.io -u homecare-demo || {
             echo "❌ Failed to authenticate with registry"
             exit 1
         }
