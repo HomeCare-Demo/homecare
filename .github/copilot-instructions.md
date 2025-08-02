@@ -351,3 +351,19 @@ interface Task {
 - Mobile app support
 - Notifications and reminders
 - Integration with home automation systems
+
+## Build and Development Guidelines
+
+### Avoiding Unnecessary Builds
+- **DO NOT** run `go build`, `make generate`, `make build`, or test commands repeatedly during development unless there are actual changes to Go source files
+- **ONLY** execute build commands when:
+  - At the end of implementing a complete feature/task when you are confident no further changes are needed
+  - Before requesting user input or feedback on implementation
+  - When there are significant changes to Go source files that require compilation validation
+  - When explicitly requested by the user
+- **AVOID** running build commands after minor changes like:
+  - Documentation updates
+  - Configuration file changes
+  - YAML/JSON file modifications
+  - Adding comments or formatting changes
+- **RATIONALE**: Unnecessary builds slow down development, consume resources, and create noise in the development workflow
