@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: homecare-operator-system
+  labels:
+    app.kubernetes.io/name: homecare-preview-operator
+    app.kubernetes.io/component: operator
+    app.kubernetes.io/part-of: homecare
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: homecare-preview-operator-controller-manager
+  namespace: homecare-operator-system
+  labels:
+    app.kubernetes.io/name: homecare-preview-operator
+    app.kubernetes.io/component: manager
+    app.kubernetes.io/part-of: homecare
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: homecare-preview-operator
+      app.kubernetes.io/component: manager
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: homecare-preview-operator
+        app.kubernetes.io/component: manager
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+    spec:
+      serviceAccountName: homecare-preview-operator
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+      containers:
+      - name: manager
+        image: ghcr.io/mvkaran/homecare/homecare-preview-operator:latest
+        imagePullPolicy: Always
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - "ALL"
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65532
+        command:
+        - /manager
+        args:
+        - --leader-elect
+        env:
+        - name: WATCH_NAMESPACE
+          value: ""
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        ports:
+        - containerPort: 9443
+          name: webhook-server
+          protocol: TCP
+        - containerPort: 8080
+          name: metrics
+          protocol: TCP
+        - containerPort: 8081
+          name: health-probe
+          protocol: TCP
+      terminationGracePeriodSeconds: 10
