@@ -1,0 +1,409 @@
+name: Preview Environment
+
+# Trigger on pull request events
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to deploy'
+        required: true
+        type: string
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'deploy'
+        type: choice
+        options:
+        - deploy
+        - destroy
+
+# Global environment variables
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # Build job: Creates and pushes Docker image for the preview
+  build:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read      # Read repository contents
+      packages: write     # Push to GitHub Container Registry
+    outputs:
+      image: ${{ steps.image.outputs.image }}           # Full image reference for deployment
+      digest: ${{ steps.build.outputs.digest }}         # Image digest for security
+      preview-tag: ${{ steps.meta.outputs.tags }}       # Preview-specific tag
+    
+    steps:
+    # Checkout the repository code
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # Get PR information
+    - name: Get PR info
+      id: pr-info
+      run: |
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          echo "pr_number=${{ github.event.inputs.pr_number }}" >> $GITHUB_OUTPUT
+          echo "username=${{ github.actor }}" >> $GITHUB_OUTPUT
+          echo "commit_sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+        else
+          echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          echo "username=${{ github.event.pull_request.user.login }}" >> $GITHUB_OUTPUT
+          echo "commit_sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+          echo "branch=${{ github.event.pull_request.head.ref }}" >> $GITHUB_OUTPUT
+        fi
+
+    # Login to GitHub Container Registry using built-in token
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    # Generate Docker image metadata (tags, labels) for preview
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=raw,value=preview${{ steps.pr-info.outputs.username }}-pr${{ steps.pr-info.outputs.pr_number }}${{ steps.pr-info.outputs.commit_sha }}
+        labels: |
+          org.opencontainers.image.title=HomeCare Preview
+          org.opencontainers.image.description=Preview environment for PR #${{ steps.pr-info.outputs.pr_number }}
+          preview.homecareapp.xyz/pr=${{ steps.pr-info.outputs.pr_number }}
+          preview.homecareapp.xyz/user=${{ steps.pr-info.outputs.username }}
+          preview.homecareapp.xyz/commit=${{ steps.pr-info.outputs.commit_sha }}
+
+    # Set up Docker Buildx for advanced build features
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    # Build and push the Docker image with caching
+    - name: Build and push Docker image
+      id: build
+      uses: docker/build-push-action@v5
+      with:
+        context: .                    # Build context (repository root)
+        platforms: linux/arm64       # Build for ARM64 to match AKS
+        push: true                    # Push to registry
+        tags: ${{ steps.meta.outputs.tags }}    # Apply generated tags
+        labels: ${{ steps.meta.outputs.labels }} # Apply generated labels
+        cache-from: type=gha         # Use GitHub Actions cache
+        cache-to: type=gha,mode=max  # Save to GitHub Actions cache
+
+    # Generate the final image reference for deployment
+    - name: Generate image reference
+      id: image
+      run: |
+        echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:preview${{ steps.pr-info.outputs.username }}-pr${{ steps.pr-info.outputs.pr_number }}${{ steps.pr-info.outputs.commit_sha }}" >> $GITHUB_OUTPUT
+
+  # Deploy job: Creates PreviewEnvironment resource for the operator to handle
+  deploy:
+    if: github.event.action != 'closed'
+    needs: build
+    runs-on: ubuntu-latest
+    environment: preview  # Use GitHub environment for approval/protection
+    permissions:
+      id-token: write     # Required for OIDC authentication with Azure
+      contents: read      # Read repository contents
+      pull-requests: write # Update PR with deployment status
+    
+    steps:
+    # Checkout repository to access Kubernetes manifests
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # Get PR information
+    - name: Get PR info
+      id: pr-info
+      run: |
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          echo "pr_number=${{ github.event.inputs.pr_number }}" >> $GITHUB_OUTPUT
+          echo "username=${{ github.actor }}" >> $GITHUB_OUTPUT
+          echo "commit_sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+          echo "branch=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+        else
+          echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          echo "username=${{ github.event.pull_request.user.login }}" >> $GITHUB_OUTPUT
+          echo "commit_sha=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+          echo "branch=${{ github.event.pull_request.head.ref }}" >> $GITHUB_OUTPUT
+        fi
+
+    # Authenticate to Azure using OIDC (no secrets required)
+    - name: Azure login using OIDC
+      uses: azure/login@v2
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        enable-AzPSSession: false
+
+    # Install kubectl for Kubernetes operations
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+
+    # Get AKS cluster credentials and configure kubectl
+    - name: Get AKS credentials
+      run: |
+        az aks get-credentials \
+          --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+          --name ${{ secrets.AZURE_CLUSTER_NAME }} \
+          --overwrite-existing
+
+    # Generate short commit SHA for URL
+    - name: Generate short commit SHA
+      id: short-sha
+      run: |
+        echo "short_sha=$(echo ${{ steps.pr-info.outputs.commit_sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+
+    # Create PreviewEnvironment resource
+    - name: Create PreviewEnvironment
+      id: create-preview
+      run: |
+        # Generate PreviewEnvironment name
+        PREVIEW_NAME="preview-${{ steps.pr-info.outputs.username }}-pr${{ steps.pr-info.outputs.pr_number }}"
+        ENVIRONMENT_URL="${{ steps.pr-info.outputs.username }}${{ steps.pr-info.outputs.pr_number }}${{ steps.short-sha.outputs.short_sha }}.dev.homecareapp.xyz"
+        
+        # Create PreviewEnvironment resource
+        cat <<EOF | kubectl apply -f -
+        apiVersion: preview.homecareapp.xyz/v1
+        kind: PreviewEnvironment
+        metadata:
+          name: $PREVIEW_NAME
+          labels:
+            preview.homecareapp.xyz/pr: "${{ steps.pr-info.outputs.pr_number }}"
+            preview.homecareapp.xyz/user: "${{ steps.pr-info.outputs.username }}"
+        spec:
+          repoName: "${{ github.repository }}"
+          prNumber: ${{ steps.pr-info.outputs.pr_number }}
+          branch: "${{ steps.pr-info.outputs.branch }}"
+          commitSha: "${{ steps.pr-info.outputs.commit_sha }}"
+          githubUsername: "${{ steps.pr-info.outputs.username }}"
+          imageTag: "${{ needs.build.outputs.image }}"
+          ttl: 72  # 3 days
+        EOF
+        
+        echo "preview_name=$PREVIEW_NAME" >> $GITHUB_OUTPUT
+        echo "environment_url=https://$ENVIRONMENT_URL" >> $GITHUB_OUTPUT
+
+    # Wait for PreviewEnvironment to be ready
+    - name: Wait for preview environment
+      id: wait-preview
+      run: |
+        PREVIEW_NAME="${{ steps.create-preview.outputs.preview_name }}"
+        echo "Waiting for PreviewEnvironment $PREVIEW_NAME to be ready..."
+        
+        # Wait up to 10 minutes for the environment to be ready
+        for i in {1..60}; do
+          STATUS=$(kubectl get previewenvironment $PREVIEW_NAME -o jsonpath='{.status.phase}' 2>/dev/null || echo "NotFound")
+          
+          if [[ "$STATUS" == "Ready" ]]; then
+            echo "✅ PreviewEnvironment is ready!"
+            break
+          elif [[ "$STATUS" == "Failed" ]]; then
+            echo "❌ PreviewEnvironment failed to deploy"
+            kubectl get previewenvironment $PREVIEW_NAME -o yaml
+            exit 1
+          else
+            echo "⏳ Status: $STATUS (attempt $i/60)"
+            sleep 10
+          fi
+        done
+        
+        if [[ "$STATUS" != "Ready" ]]; then
+          echo "❌ Timeout waiting for PreviewEnvironment to be ready"
+          kubectl get previewenvironment $PREVIEW_NAME -o yaml
+          exit 1
+        fi
+
+    # Update PR with deployment status
+    - name: Update PR with deployment info
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+
+          const botComment = comments.find(comment => 
+            comment.user.type === 'Bot' && 
+            comment.body.includes('🚀 Preview Environment')
+          );
+
+          const body = `🚀 **Preview Environment Ready**
+
+          Your preview environment has been deployed successfully!
+
+          **📋 Details:**
+          - **PR**: #${{ steps.pr-info.outputs.pr_number }}
+          - **Commit**: \`${{ steps.short-sha.outputs.short_sha }}\`
+          - **Image**: \`${{ needs.build.outputs.image }}\`
+          - **Namespace**: \`preview${{ steps.pr-info.outputs.username }}-pr${{ steps.pr-info.outputs.pr_number }}\`
+
+          **🌐 Preview URL:** [${{ steps.create-preview.outputs.environment_url }}](${{ steps.create-preview.outputs.environment_url }})
+
+          **⏰ TTL:** This environment will automatically expire in 72 hours.
+
+          ---
+          *This preview environment is managed by the HomeCare Preview Operator*`;
+
+          if (botComment) {
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id,
+              body: body
+            });
+          } else {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
+          }
+
+    # Display deployment status
+    - name: Display deployment status
+      run: |
+        echo "🎉 Preview Environment Deployment Complete!"
+        echo "=========================================="
+        echo "📋 Preview Name: ${{ steps.create-preview.outputs.preview_name }}"
+        echo "🌐 Environment URL: ${{ steps.create-preview.outputs.environment_url }}"
+        echo "🐳 Image: ${{ needs.build.outputs.image }}"
+        echo "⏰ TTL: 72 hours"
+        echo ""
+        echo "📊 Kubernetes Resources:"
+        kubectl get previewenvironment ${{ steps.create-preview.outputs.preview_name }} -o wide
+
+  # Cleanup job: Removes PreviewEnvironment when PR is closed
+  cleanup:
+    if: github.event.action == 'closed' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'destroy')
+    runs-on: ubuntu-latest
+    environment: preview
+    permissions:
+      id-token: write     # Required for OIDC authentication with Azure
+      contents: read      # Read repository contents
+      pull-requests: write # Update PR with cleanup status
+    
+    steps:
+    # Checkout repository
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # Get PR information
+    - name: Get PR info
+      id: pr-info
+      run: |
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          echo "pr_number=${{ github.event.inputs.pr_number }}" >> $GITHUB_OUTPUT
+          echo "username=${{ github.actor }}" >> $GITHUB_OUTPUT
+        else
+          echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          echo "username=${{ github.event.pull_request.user.login }}" >> $GITHUB_OUTPUT
+        fi
+
+    # Authenticate to Azure using OIDC
+    - name: Azure login using OIDC
+      uses: azure/login@v2
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        enable-AzPSSession: false
+
+    # Install kubectl for Kubernetes operations
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+
+    # Get AKS cluster credentials and configure kubectl
+    - name: Get AKS credentials
+      run: |
+        az aks get-credentials \
+          --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+          --name ${{ secrets.AZURE_CLUSTER_NAME }} \
+          --overwrite-existing
+
+    # Delete PreviewEnvironment resource
+    - name: Delete PreviewEnvironment
+      id: delete-preview
+      run: |
+        PREVIEW_NAME="preview-${{ steps.pr-info.outputs.username }}-pr${{ steps.pr-info.outputs.pr_number }}"
+        
+        # Check if PreviewEnvironment exists
+        if kubectl get previewenvironment $PREVIEW_NAME &> /dev/null; then
+          echo "🗑️ Deleting PreviewEnvironment: $PREVIEW_NAME"
+          kubectl delete previewenvironment $PREVIEW_NAME
+          
+          # Wait for cleanup to complete
+          echo "⏳ Waiting for cleanup to complete..."
+          kubectl wait --for=delete previewenvironment/$PREVIEW_NAME --timeout=300s || true
+          
+          echo "✅ PreviewEnvironment deleted successfully"
+        else
+          echo "ℹ️ PreviewEnvironment $PREVIEW_NAME not found (may have already been deleted)"
+        fi
+        
+        echo "preview_name=$PREVIEW_NAME" >> $GITHUB_OUTPUT
+
+    # Update PR with cleanup status
+    - name: Update PR with cleanup info
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { data: comments } = await github.rest.issues.listComments({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+          });
+
+          const botComment = comments.find(comment => 
+            comment.user.type === 'Bot' && 
+            comment.body.includes('🚀 Preview Environment')
+          );
+
+          if (botComment) {
+            const body = `🚀 **Preview Environment** - 🗑️ **Cleaned Up**
+
+            The preview environment for this PR has been cleaned up.
+
+            **📋 Details:**
+            - **PR**: #${{ steps.pr-info.outputs.pr_number }}
+            - **Preview Name**: \`${{ steps.delete-preview.outputs.preview_name }}\`
+            - **Status**: ✅ Deleted
+
+            All associated Kubernetes resources have been removed.
+
+            ---
+            *This preview environment was managed by the HomeCare Preview Operator*`;
+
+            await github.rest.issues.updateComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              comment_id: botComment.id,
+              body: body
+            });
+          }
+
+    # Display cleanup status
+    - name: Display cleanup status
+      run: |
+        echo "🗑️ Preview Environment Cleanup Complete!"
+        echo "========================================"
+        echo "📋 Preview Name: ${{ steps.delete-preview.outputs.preview_name }}"
+        echo "✅ All resources have been cleaned up"
