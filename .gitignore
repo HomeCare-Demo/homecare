@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Go operator binaries and build artifacts
+operator/bin/
+operator/cover.out
+operator/testbin/
