@@ -37,8 +37,7 @@ var _ = Describe("PreviewEnvironment Controller", func() {
 		ctx := context.Background()
 
 		typeNamespacedName := types.NamespacedName{
-			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
+			Name: resourceName,
 		}
 		previewenvironment := &previewv1.PreviewEnvironment{}
 
@@ -48,23 +47,30 @@ var _ = Describe("PreviewEnvironment Controller", func() {
 			if err != nil && errors.IsNotFound(err) {
 				resource := &previewv1.PreviewEnvironment{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: "default",
+						Name: resourceName,
 					},
-					// TODO(user): Specify other spec details if needed.
+					Spec: previewv1.PreviewEnvironmentSpec{
+						RepoName:       "homecare",
+						PRNumber:       123,
+						Branch:         "test-branch",
+						CommitSha:      "abcdef1234567890abcdef1234567890abcdef12",
+						GitHubUsername: "testuser",
+						ImageTag:       "ghcr.io/homecare-demo/homecare:test",
+						TTL:            24,
+					},
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
 		})
 
 		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
+			// Cleanup the resource instance after test
 			resource := &previewv1.PreviewEnvironment{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("Cleanup the specific resource instance PreviewEnvironment")
-			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+			if err == nil {
+				By("Cleanup the specific resource instance PreviewEnvironment")
+				Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+			}
 		})
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")

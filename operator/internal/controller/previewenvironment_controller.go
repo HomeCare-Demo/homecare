@@ -21,18 +21,18 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	previewv1 "github.com/homecare-demo/homecare/operator/api/v1"
 )
@@ -102,9 +102,9 @@ func (r *PreviewEnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.R
 
 	// Check if environment has expired
 	if previewEnv.IsExpired() {
-		logger.Info("Preview environment has expired, marking for deletion", 
+		logger.Info("Preview environment has expired, marking for deletion",
 			"namespace", previewEnv.GetNamespace())
-		
+
 		// Update status to expiring
 		previewEnv.Status.Phase = previewv1.PhaseExpiring
 		previewEnv.Status.Message = "Environment has expired and is being cleaned up"
@@ -124,7 +124,7 @@ func (r *PreviewEnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.R
 		previewEnv.Status.CreatedAt = &metav1.Time{Time: time.Now()}
 		previewEnv.SetExpirationTime()
 		previewEnv.Status.Message = "Creating preview environment resources"
-		
+
 		if err := r.Status().Update(ctx, previewEnv); err != nil {
 			logger.Error(err, "Failed to initialize status")
 			return ctrl.Result{}, err
@@ -134,14 +134,14 @@ func (r *PreviewEnvironmentReconciler) Reconcile(ctx context.Context, req ctrl.R
 	// Reconcile the preview environment resources
 	if err := r.reconcilePreviewEnvironment(ctx, previewEnv); err != nil {
 		logger.Error(err, "Failed to reconcile preview environment")
-		
+
 		// Update status to failed
 		previewEnv.Status.Phase = previewv1.PhaseFailed
 		previewEnv.Status.Message = fmt.Sprintf("Failed to create resources: %v", err)
 		if statusErr := r.Status().Update(ctx, previewEnv); statusErr != nil {
 			logger.Error(statusErr, "Failed to update status to failed")
 		}
-		
+
 		return ctrl.Result{RequeueAfter: time.Minute * 5}, err
 	}
 
@@ -168,7 +168,7 @@ func (r *PreviewEnvironmentReconciler) SetupWithManager(mgr ctrl.Manager) error 
 // reconcilePreviewEnvironment creates and manages all resources for the preview environment
 func (r *PreviewEnvironmentReconciler) reconcilePreviewEnvironment(ctx context.Context, previewEnv *previewv1.PreviewEnvironment) error {
 	logger := log.FromContext(ctx)
-	
+
 	// Create namespace
 	if err := r.reconcileNamespace(ctx, previewEnv); err != nil {
 		logger.Error(err, "Failed to reconcile namespace")
@@ -235,13 +235,13 @@ func (r *PreviewEnvironmentReconciler) reconcileNamespace(ctx context.Context, p
 // reconcileDeployment creates the application deployment
 func (r *PreviewEnvironmentReconciler) reconcileDeployment(ctx context.Context, previewEnv *previewv1.PreviewEnvironment) error {
 	replicas := int32(1)
-	
+
 	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "homecare-app",
 			Namespace: previewEnv.GetNamespace(),
 			Labels: map[string]string{
-				"app": "homecare-app",
+				"app":                          "homecare-app",
 				"preview.homecareapp.xyz/repo": previewEnv.Spec.RepoName,
 				"preview.homecareapp.xyz/pr":   fmt.Sprintf("%d", previewEnv.Spec.PRNumber),
 			},
@@ -256,7 +256,7 @@ func (r *PreviewEnvironmentReconciler) reconcileDeployment(ctx context.Context, 
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						"app": "homecare-app",
+						"app":                          "homecare-app",
 						"preview.homecareapp.xyz/repo": previewEnv.Spec.RepoName,
 						"preview.homecareapp.xyz/pr":   fmt.Sprintf("%d", previewEnv.Spec.PRNumber),
 					},
@@ -340,7 +340,7 @@ func (r *PreviewEnvironmentReconciler) reconcileService(ctx context.Context, pre
 			Name:      "homecare-app",
 			Namespace: previewEnv.GetNamespace(),
 			Labels: map[string]string{
-				"app": "homecare-app",
+				"app":                          "homecare-app",
 				"preview.homecareapp.xyz/repo": previewEnv.Spec.RepoName,
 				"preview.homecareapp.xyz/pr":   fmt.Sprintf("%d", previewEnv.Spec.PRNumber),
 			},
@@ -383,13 +383,13 @@ func (r *PreviewEnvironmentReconciler) reconcileService(ctx context.Context, pre
 func (r *PreviewEnvironmentReconciler) reconcileIngress(ctx context.Context, previewEnv *previewv1.PreviewEnvironment) error {
 	pathType := networkingv1.PathTypePrefix
 	ingressClassName := "nginx"
-	
+
 	// Generate hostname
 	shortSha := previewEnv.Spec.CommitSha
 	if len(shortSha) > 7 {
 		shortSha = shortSha[:7]
 	}
-	hostname := fmt.Sprintf("%s%d%s.dev.homecareapp.xyz", 
+	hostname := fmt.Sprintf("%s%d%s.dev.homecareapp.xyz",
 		previewEnv.Spec.GitHubUsername, previewEnv.Spec.PRNumber, shortSha)
 
 	ingress := &networkingv1.Ingress{
@@ -397,7 +397,7 @@ func (r *PreviewEnvironmentReconciler) reconcileIngress(ctx context.Context, pre
 			Name:      "homecare-app",
 			Namespace: previewEnv.GetNamespace(),
 			Labels: map[string]string{
-				"app": "homecare-app",
+				"app":                          "homecare-app",
 				"preview.homecareapp.xyz/repo": previewEnv.Spec.RepoName,
 				"preview.homecareapp.xyz/pr":   fmt.Sprintf("%d", previewEnv.Spec.PRNumber),
 			},
@@ -454,7 +454,7 @@ func (r *PreviewEnvironmentReconciler) reconcileIngress(ctx context.Context, pre
 // cleanupPreviewEnvironment handles cleanup when the PreviewEnvironment is deleted
 func (r *PreviewEnvironmentReconciler) cleanupPreviewEnvironment(ctx context.Context, previewEnv *previewv1.PreviewEnvironment) error {
 	logger := log.FromContext(ctx)
-	
+
 	// Since we use owner references, deleting the namespace will cascade delete all resources
 	namespace := &corev1.Namespace{}
 	err := r.Get(ctx, client.ObjectKey{Name: previewEnv.GetNamespace()}, namespace)

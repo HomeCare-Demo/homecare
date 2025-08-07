@@ -17,9 +17,9 @@ limitations under the License.
 package v1
 
 import (
+	"fmt"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"time"
-	"fmt"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
@@ -151,7 +151,7 @@ func (pe *PreviewEnvironment) GenerateEnvironmentURL() string {
 	if len(shortSha) > 7 {
 		shortSha = shortSha[:7]
 	}
-	return fmt.Sprintf("https://%s%d%s.dev.homecareapp.xyz", 
+	return fmt.Sprintf("https://%s%d%s.dev.homecareapp.xyz",
 		pe.Spec.GitHubUsername, pe.Spec.PRNumber, shortSha)
 }
 

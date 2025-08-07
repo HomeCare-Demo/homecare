@@ -146,7 +146,21 @@ kubectl apply -k k8s/overlays/prod
 ### Automated Deployment with GitHub Actions
 This project includes a complete CI/CD pipeline using GitHub Actions with OIDC authentication for secure deployments to AKS.
 
-**📖 Documentation:**
+### 🔄 Preview Environments
+Automatic preview environments for pull requests with isolated testing and review:
+
+- **Auto-deployment**: Every PR gets its own preview environment
+- **Unique URLs**: `https://<username><pr><commit>.dev.homecareapp.xyz`
+- **Kubernetes Operator**: Go-based operator for complete lifecycle management
+- **Resource Isolation**: Dedicated namespaces with owner-reference cleanup
+- **TTL Management**: Automatic expiration and cleanup
+- **Cost Optimized**: Minimal resource usage with ARM64 compatibility
+
+**📖 Preview Documentation:**
+- [PreviewEnvironment Setup Guide](docs/PREVIEW_ENVIRONMENTS_SETUP.md) - Quick setup instructions
+- [Complete PreviewEnvironment Documentation](docs/PREVIEW_ENVIRONMENTS.md) - Detailed feature guide
+
+**📖 Infrastructure Documentation:**
 - [Complete AKS Deployment Guide](docs/AKS_DEPLOYMENT.md) - Detailed setup instructions
 - [NGINX Ingress Setup](docs/NGINX_INGRESS.md) - Cost-optimized ingress configuration
 - [Quick Setup Checklist](docs/QUICK_SETUP.md) - Manual inputs and configuration
@@ -157,6 +171,7 @@ This project includes a complete CI/CD pipeline using GitHub Actions with OIDC a
 - OIDC authentication with Azure (no secrets required)
 - Multi-platform Docker image builds (AMD64/ARM64) with GitHub Container Registry
 - Environment-specific deployments (dev/prod)
+- **Preview Environments**: Automatic PR-based preview deployments with Kubernetes operator
 - Cost-optimized ARM64-based AKS cluster for Azure free tier
 - NGINX Ingress with Basic Load Balancer for cost savings
 - Manual and automatic deployment triggers
