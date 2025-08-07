@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- preview_v1_previewenvironment.yaml
+#+kubebuilder:scaffold:manifestskustomizesamples

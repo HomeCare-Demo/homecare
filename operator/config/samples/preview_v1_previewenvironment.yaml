@@ -1,0 +1,19 @@
+apiVersion: preview.homecareapp.xyz/v1
+kind: PreviewEnvironment
+metadata:
+  labels:
+    app.kubernetes.io/name: homecare-preview
+    app.kubernetes.io/instance: pr-123
+    app.kubernetes.io/managed-by: preview-operator
+    preview.homecareapp.xyz/repo: homecare
+    preview.homecareapp.xyz/pr: "123"
+    preview.homecareapp.xyz/user: john
+  name: preview-john-pr123
+spec:
+  repoName: homecare
+  prNumber: 123
+  branch: feature/preview-environments
+  commitSha: abc1234567890abcdef1234567890abcdef123456
+  githubUsername: john
+  imageTag: ghcr.io/homecare-demo/homecare:previewjohn-pr123abc1234
+  ttl: 72
